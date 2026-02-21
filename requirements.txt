@@ -6,3 +6,4 @@ requests
 APScheduler
 gunicorn
 pytz
+yfinance
