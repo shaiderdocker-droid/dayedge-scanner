@@ -10,7 +10,7 @@ import json
 import os
 from datetime import datetime
 
-app = Flask(__name__, static_folder='static')
+app = Flask(__name__, static_folder='static', static_url_path='')
 
 # Store latest results in memory
 latest_results = None
@@ -31,8 +31,7 @@ scheduler.start()
 
 @app.route('/')
 def index():
-    """Serve the main dashboard"""
-    return send_from_directory('static', 'index.html')
+    return app.send_static_file('index.html')
 
 
 @app.route('/api/scan')
