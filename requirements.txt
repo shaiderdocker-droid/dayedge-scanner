@@ -7,3 +7,4 @@ APScheduler
 gunicorn
 pytz
 yfinance
+scikit-learn
