@@ -493,44 +493,75 @@ async function loadAll(){
   try{const r=await fetch('/api/backtest'); const d=await r.json(); if(!d.error) renderBacktest(d);}catch(e){}
 }
 
+async function pollUntilDone(taskName, onComplete) {
+  const msgs = {
+    evening: ['CHECKING SPY...','SECTOR ROTATION...','FETCHING DATA...','ADX & WEEKLY TRENDS...','OPTIONS ACTIVITY...','ML SCORING...','RANKING...'],
+    morning: ['CHECKING PRE-MARKET...','CONFIRMING SETUPS...','CALCULATING LEVELS...'],
+    backtest: ['LOADING HISTORY...','SIMULATING SIGNALS...','CALCULATING WIN RATES...']
+  };
+  const taskMsgs = msgs[taskName] || ['PROCESSING...'];
+  let i = 0;
+  setOverlay(true, taskMsgs[0]);
+  const iv = setInterval(() => {
+    document.getElementById('overlayText').textContent = taskMsgs[Math.min(++i, taskMsgs.length-1)];
+  }, 5000);
+
+  // Poll every 5 seconds until scan is done
+  const poll = setInterval(async () => {
+    try {
+      const r = await fetch('/api/scan-status');
+      const d = await r.json();
+      if (!d.running) {
+        clearInterval(poll);
+        clearInterval(iv);
+        setOverlay(false);
+        if (d.error) {
+          toast('ERROR: ' + d.error, true);
+        } else {
+          await onComplete();
+        }
+      }
+    } catch(e) {
+      clearInterval(poll);
+      clearInterval(iv);
+      setOverlay(false);
+      toast('CONNECTION ERROR', true);
+    }
+  }, 5000);
+}
+
 async function runScan(){
   const btn=document.getElementById('scanBtn'); btn.disabled=true; btn.classList.add('loading');
-  const msgs=['CHECKING SPY...','SECTOR ROTATION...','FETCHING DATA...','ADX & WEEKLY TRENDS...','OPTIONS ACTIVITY...','ML SCORING...','RANKING...'];
-  let i=0; setOverlay(true,msgs[0]);
-  const iv=setInterval(()=>document.getElementById('overlayText').textContent=msgs[Math.min(++i,msgs.length-1)],4000);
-  try{
-    const r=await fetch('/api/run-scan',{method:'POST'}); const d=await r.json();
-    clearInterval(iv); setOverlay(false);
-    if(d.status==='success'){await loadAll(); toast('✓ EVENING SCAN COMPLETE');}
-    else toast('ERROR: '+d.message,true);
-  }catch(e){clearInterval(iv);setOverlay(false);toast('CONNECTION ERROR',true);}
+  try {
+    await fetch('/api/run-scan', {method:'POST'});
+    await pollUntilDone('evening', async () => {
+      await loadAll();
+      toast('✓ EVENING SCAN COMPLETE');
+    });
+  } catch(e) { setOverlay(false); toast('CONNECTION ERROR', true); }
   btn.disabled=false; btn.classList.remove('loading');
 }
 
 async function runMorning(){
-  setOverlay(true,'RUNNING MORNING CONFIRMATION...');
-  try{
-    const r=await fetch('/api/run-morning',{method:'POST'}); const d=await r.json();
-    setOverlay(false);
-    if(d.status==='success'){
+  try {
+    await fetch('/api/run-morning', {method:'POST'});
+    await pollUntilDone('morning', async () => {
       const mr=await fetch('/api/morning'); renderMorning(await mr.json());
       switchTab('morning',document.querySelectorAll('.tab')[1]);
       toast('✓ MORNING SCAN COMPLETE');
-    }else toast('ERROR: '+d.message,true);
-  }catch(e){setOverlay(false);toast('ERROR',true);}
+    });
+  } catch(e) { setOverlay(false); toast('ERROR', true); }
 }
 
 async function runBacktest(){
-  setOverlay(true,'RUNNING BACKTEST — THIS TAKES 5-10 MINUTES...');
-  try{
-    const r=await fetch('/api/run-backtest',{method:'POST'}); const d=await r.json();
-    setOverlay(false);
-    if(d.status==='success'){
-      renderBacktest(d.data);
+  try {
+    await fetch('/api/run-backtest', {method:'POST'});
+    await pollUntilDone('backtest', async () => {
+      const br=await fetch('/api/backtest'); renderBacktest(await br.json());
       switchTab('backtest',document.querySelectorAll('.tab')[3]);
       toast('✓ BACKTEST COMPLETE');
-    }else toast('ERROR: '+d.message,true);
-  }catch(e){setOverlay(false);toast('ERROR',true);}
+    });
+  } catch(e) { setOverlay(false); toast('ERROR', true); }
 }
 
 loadAll();
