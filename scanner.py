@@ -31,14 +31,14 @@ TIME_OPT_FILE = "time_optimization.json"
 DEFAULT_WATCHLIST = [
     "AAPL","MSFT","NVDA","AMD","TSLA","META","GOOGL","AMZN",
     "NFLX","CRM","PLTR","SOFI","RIVN","LCID","NIO","BABA",
-    "COIN","HOOD","MARA","RIOT","UPST","AFRM","SQ","PYPL",
+    "COIN","HOOD","MARA","RIOT","UPST","AFRM","PYPL",
     "SNAP","UBER","LYFT","ABNB","DASH","RBLX","SHOP","SPOT",
     "ZM","ROKU","TWLO","DDOG","NET","CRWD","OKTA","SNOW"
 ]
 
 SECTOR_ETFS = {
     "XLK": ["AAPL","MSFT","NVDA","AMD","GOOGL","META","CRM","TWLO","DDOG","NET","CRWD","OKTA","SNOW","SHOP"],
-    "XLF": ["COIN","HOOD","PYPL","SQ","AFRM","UPST"],
+    "XLF": ["COIN","HOOD","PYPL","AFRM","UPST"],
     "XLY": ["AMZN","TSLA","ABNB","DASH","UBER","LYFT","RBLX","SHOP"],
     "XLC": ["GOOGL","META","NFLX","SNAP","SPOT","ROKU","ZM"],
     "XME": ["MARA","RIOT"],
@@ -478,6 +478,7 @@ def run_scanner():
             earnings_risky,days_earn=get_earnings_risk(ticker)
             sector_score,sector_etf=get_sector_score(sym,rotation)
             unusual_options,options_detail=check_unusual_options(sym)
+            unusual_options = bool(unusual_options)
             gap_fill_prob,_=get_gap_fill_risk(sym,features["gap_pct"])
             trade_levels=calculate_trade_levels(df)
             ml_adj=get_ml_adjustment(features)
