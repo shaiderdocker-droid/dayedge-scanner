@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DayEdge — Evening Stock Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c10;
+    --panel: #0d1117;
+    --border: #1a2332;
+    --border-bright: #1e3a5f;
+    --green: #00ff88;
+    --green-dim: #00c46a;
+    --green-glow: rgba(0,255,136,0.12);
+    --red: #ff4466;
+    --yellow: #ffd166;
+    --blue: #4fc3f7;
+    --text: #c9d1d9;
+    --text-dim: #586069;
+    --text-bright: #e6edf3;
+    --grade-a: #00ff88;
+    --grade-b: #ffd166;
+    --grade-c: #ff9b54;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Barlow', sans-serif;
+    --display: 'Barlow Condensed', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline effect */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* Header */
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border-bright);
+    padding: 0 2rem;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: 0 0 12px var(--green-glow);
+  }
+
+  .logo-icon::before {
+    content: '▲';
+    color: var(--green);
+    font-size: 14px;
+  }
+
+  .logo-text {
+    font-family: var(--display);
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--text-bright);
+    letter-spacing: 0.05em;
+  }
+
+  .logo-text span {
+    color: var(--green);
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .clock {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+
+  .clock span {
+    color: var(--green);
+  }
+
+  .btn-scan {
+    background: transparent;
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    padding: 0.5rem 1.2rem;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-scan:hover {
+    background: var(--green-glow);
+    box-shadow: 0 0 16px var(--green-glow);
+  }
+
+  .btn-scan:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .btn-scan.loading::after {
+    content: '';
+    position: absolute;
+    left: -100%;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0,255,136,0.2), transparent);
+    animation: shimmer 1.2s infinite;
+  }
+
+  @keyframes shimmer {
+    to { left: 100%; }
+  }
+
+  /* Main layout */
+  main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  /* Stats bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 1rem 1.25rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--green);
+  }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .stat-value {
+    font-family: var(--display);
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--text-bright);
+    line-height: 1;
+  }
+
+  .stat-value.green { color: var(--green); }
+  .stat-value.yellow { color: var(--yellow); }
+
+  /* Section header */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-title {
+    font-family: var(--display);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-bright);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .section-subtitle {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+  }
+
+  /* Table */
+  .table-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+
+  thead {
+    background: #0a0f15;
+    border-bottom: 1px solid var(--border-bright);
+  }
+
+  th {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 0.85rem 1.25rem;
+    text-align: left;
+    font-weight: 400;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+
+  tbody tr:hover {
+    background: rgba(0, 255, 136, 0.04);
+  }
+
+  tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  td {
+    padding: 1rem 1.25rem;
+    vertical-align: middle;
+  }
+
+  /* Symbol cell */
+  .symbol-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .symbol {
+    font-family: var(--display);
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--text-bright);
+    letter-spacing: 0.05em;
+  }
+
+  /* Grade badge */
+  .grade {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    font-weight: 700;
+    border: 1px solid;
+  }
+
+  .grade-A {
+    color: var(--grade-a);
+    border-color: var(--grade-a);
+    background: rgba(0,255,136,0.08);
+    box-shadow: 0 0 8px rgba(0,255,136,0.2);
+  }
+
+  .grade-B {
+    color: var(--grade-b);
+    border-color: var(--grade-b);
+    background: rgba(255,209,102,0.08);
+  }
+
+  .grade-C {
+    color: var(--grade-c);
+    border-color: var(--grade-c);
+    background: rgba(255,155,84,0.08);
+  }
+
+  /* Score bar */
+  .score-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .score-num {
+    font-family: var(--mono);
+    font-size: 1rem;
+    color: var(--text-bright);
+    min-width: 20px;
+  }
+
+  .score-bar {
+    height: 4px;
+    width: 80px;
+    background: var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .score-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green-dim), var(--green));
+    transition: width 0.8s ease;
+  }
+
+  /* Number cells */
+  .num {
+    font-family: var(--mono);
+    font-size: 0.88rem;
+  }
+
+  .positive { color: var(--green); }
+  .negative { color: var(--red); }
+  .neutral { color: var(--text); }
+
+  /* Catalyst badge */
+  .catalyst-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    padding: 0.2rem 0.5rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .catalyst-yes {
+    color: var(--blue);
+    border: 1px solid rgba(79,195,247,0.4);
+    background: rgba(79,195,247,0.08);
+  }
+
+  .catalyst-no {
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+
+  /* Expand row */
+  .reasons-row {
+    display: none;
+    background: #0a0f15;
+  }
+
+  .reasons-row.open {
+    display: table-row;
+  }
+
+  .reasons-content {
+    padding: 0.75rem 1.25rem 1rem 3.5rem;
+  }
+
+  .reasons-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .reason-tag {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    background: var(--border);
+    padding: 0.25rem 0.6rem;
+    border-left: 2px solid var(--border-bright);
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+  }
+
+  .empty-title {
+    font-family: var(--display);
+    font-size: 1.4rem;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.1em;
+  }
+
+  .empty-sub {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  /* Status bar at bottom */
+  .status-bar {
+    margin-top: 2rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .status-left {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-right: 0.5rem;
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .status-right {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--panel);
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    padding: 0.75rem 1.25rem;
+    box-shadow: 0 0 20px var(--green-glow);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 999;
+  }
+
+  .toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    th:nth-child(5), td:nth-child(5),
+    th:nth-child(6), td:nth-child(6) { display: none; }
+  }
+
+  @media (max-width: 600px) {
+    main { padding: 1rem; }
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* Loading overlay */
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(8,12,16,0.85);
+    z-index: 500;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .loading-overlay.show {
+    display: flex;
+  }
+
+  .loader-text {
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    color: var(--green);
+    letter-spacing: 0.1em;
+  }
+
+  .loader-bar {
+    width: 200px;
+    height: 2px;
+    background: var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .loader-bar::after {
+    content: '';
+    position: absolute;
+    left: -50%;
+    top: 0;
+    width: 50%;
+    height: 100%;
+    background: var(--green);
+    animation: load 1.2s ease infinite;
+  }
+
+  @keyframes load {
+    to { left: 150%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loader-text" id="loaderText">SCANNING MARKETS...</div>
+  <div class="loader-bar"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon"></div>
+    <div class="logo-text">Day<span>Edge</span></div>
+  </div>
+  <div class="header-right">
+    <div class="clock">NEXT SCAN <span id="nextScan">18:00 ET</span></div>
+    <button class="btn-scan" id="scanBtn" onclick="runScan()">▶ RUN SCAN NOW</button>
+  </div>
+</header>
+
+<main>
+  <!-- Stats bar -->
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-label">Stocks Scanned</div>
+      <div class="stat-value" id="statScanned">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Setups Found</div>
+      <div class="stat-value green" id="statFound">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Grade A Setups</div>
+      <div class="stat-value green" id="statGradeA">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Last Scan</div>
+      <div class="stat-value yellow" id="statTime" style="font-size:1.1rem; padding-top:0.4rem">—</div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="section-header">
+    <div>
+      <div class="section-title">Tonight's Watchlist</div>
+    </div>
+    <div class="section-subtitle" id="marketDate">Loading...</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>Score / 10</th>
+          <th>Last Price</th>
+          <th>Gap %</th>
+          <th>Rel. Volume</th>
+          <th>ATR %</th>
+          <th>Catalyst</th>
+          <th>Tech Level</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr>
+          <td colspan="8">
+            <div class="empty-state">
+              <div class="empty-title">NO SCAN DATA YET</div>
+              <div class="empty-sub">Click "Run Scan Now" to generate tonight's watchlist</div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Status bar -->
+  <div class="status-bar">
+    <div class="status-left">
+      <span class="status-dot"></span>
+      DAYEDGE SCANNER ACTIVE — AUTO-RUNS WEEKDAYS AT 6:00PM ET
+    </div>
+    <div class="status-right" id="statusRight">READY</div>
+  </div>
+</main>
+
+<script>
+  // Update clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('statusRight').textContent =
+      now.toLocaleTimeString('en-US', { hour12: false }) + ' LOCAL';
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // Show toast
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.borderColor = isError ? 'var(--red)' : 'var(--green)';
+    t.style.color = isError ? 'var(--red)' : 'var(--green)';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // Render results
+  function renderResults(data) {
+    const tbody = document.getElementById('tableBody');
+
+    // Update stats
+    document.getElementById('statScanned').textContent = data.total_scanned || '—';
+    document.getElementById('statFound').textContent = (data.results || []).length;
+    document.getElementById('statGradeA').textContent = (data.results || []).filter(r => r.grade === 'A').length;
+
+    if (data.timestamp) {
+      const d = new Date(data.timestamp);
+      document.getElementById('statTime').textContent = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    if (data.market_date) {
+      document.getElementById('marketDate').textContent = 'FOR TRADING: ' + data.market_date.toUpperCase();
+    }
+
+    if (!data.results || data.results.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8">
+        <div class="empty-state">
+          <div class="empty-title">${data.error || 'NO SETUPS FOUND'}</div>
+          <div class="empty-sub">Try running the scan again or check your API keys</div>
+        </div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = '';
+
+    data.results.forEach((stock, i) => {
+      const gapClass = stock.gap_pct > 0 ? 'positive' : stock.gap_pct < 0 ? 'negative' : 'neutral';
+      const scorePct = Math.min((stock.score / 10) * 100, 100);
+      const techStars = '●'.repeat(stock.tech_score) + '○'.repeat(3 - stock.tech_score);
+
+      // Main row
+      const row = document.createElement('tr');
+      row.style.animationDelay = `${i * 0.05}s`;
+      row.innerHTML = `
+        <td>
+          <div class="symbol-cell">
+            <span class="grade grade-${stock.grade}">${stock.grade}</span>
+            <span class="symbol">${stock.symbol}</span>
+          </div>
+        </td>
+        <td>
+          <div class="score-wrap">
+            <span class="score-num">${stock.score}</span>
+            <div class="score-bar">
+              <div class="score-fill" style="width: ${scorePct}%"></div>
+            </div>
+          </div>
+        </td>
+        <td><span class="num">$${stock.last_close.toFixed(2)}</span></td>
+        <td><span class="num ${gapClass}">${stock.gap_pct > 0 ? '+' : ''}${stock.gap_pct}%</span></td>
+        <td><span class="num ${stock.rvol >= 2 ? 'positive' : 'neutral'}">${stock.rvol}x</span></td>
+        <td><span class="num ${stock.atr_pct >= 2 ? 'positive' : 'neutral'}">${stock.atr_pct}%</span></td>
+        <td><span class="catalyst-badge ${stock.has_catalyst ? 'catalyst-yes' : 'catalyst-no'}">${stock.has_catalyst ? 'YES' : 'NO'}</span></td>
+        <td><span class="num" style="color: var(--text-dim); letter-spacing: 0.1em">${techStars}</span></td>
+      `;
+
+      // Reasons row
+      const reasonsRow = document.createElement('tr');
+      reasonsRow.className = 'reasons-row';
+      reasonsRow.innerHTML = `<td colspan="8">
+        <div class="reasons-content">
+          <div class="reasons-list">
+            ${(stock.reasons || []).map(r => `<span class="reason-tag">${r}</span>`).join('')}
+          </div>
+        </div>
+      </td>`;
+
+      // Toggle expand on click
+      row.addEventListener('click', () => {
+        reasonsRow.classList.toggle('open');
+      });
+
+      tbody.appendChild(row);
+      tbody.appendChild(reasonsRow);
+    });
+  }
+
+  // Load existing results on page load
+  async function loadResults() {
+    try {
+      const res = await fetch('/api/scan');
+      const data = await res.json();
+      renderResults(data);
+    } catch (e) {
+      // Silent fail, show empty state
+    }
+  }
+
+  // Run scan manually
+  async function runScan() {
+    const btn = document.getElementById('scanBtn');
+    const overlay = document.getElementById('loadingOverlay');
+
+    btn.disabled = true;
+    btn.classList.add('loading');
+    overlay.classList.add('show');
+
+    const messages = [
+      'FETCHING MARKET DATA...',
+      'CALCULATING GAP SCORES...',
+      'ANALYZING VOLUME...',
+      'SCORING SETUPS...',
+      'RANKING RESULTS...'
+    ];
+    let msgIdx = 0;
+    const msgInterval = setInterval(() => {
+      document.getElementById('loaderText').textContent = messages[Math.min(msgIdx++, messages.length - 1)];
+    }, 2000);
+
+    try {
+      const res = await fetch('/api/run-scan', { method: 'POST' });
+      const data = await res.json();
+      clearInterval(msgInterval);
+      overlay.classList.remove('show');
+
+      if (data.status === 'success') {
+        await loadResults();
+        showToast('✓ SCAN COMPLETE — ' + (document.querySelectorAll('tbody tr:not(.reasons-row)').length) + ' SETUPS FOUND');
+      } else {
+        showToast('ERROR: ' + data.message, true);
+      }
+    } catch (e) {
+      clearInterval(msgInterval);
+      overlay.classList.remove('show');
+      showToast('CONNECTION ERROR — IS THE SERVER RUNNING?', true);
+    }
+
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
+
+  // Init
+  loadResults();
+
+  // Auto-refresh every 60 seconds
+  setInterval(loadResults, 60000);
+</script>
+</body>
+</html>
