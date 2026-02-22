@@ -49,6 +49,8 @@ main{max-width:1600px;margin:0 auto;padding:2rem}
 .tab:hover{color:var(--t)}
 .tab-exit{color:var(--orange) !important}
 .tab-exit.active{color:var(--orange) !important;border-bottom-color:var(--orange) !important}
+.tab-eod{color:var(--purple) !important}
+.tab-eod.active{color:var(--purple) !important;border-bottom-color:var(--purple) !important}
 .tab-content{display:none}
 .tab-content.active{display:block}
 
@@ -292,6 +294,49 @@ td{padding:.85rem 1rem;vertical-align:middle}
 .overlay-bar::after{content:'';position:absolute;left:-50%;top:0;width:50%;height:100%;background:var(--green);animation:load 1.2s ease infinite}
 @keyframes load{to{left:150%}}
 
+/* ═══ EOD RESULTS TAB ════════════════════════════════════════════ */
+.eod-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.5rem}
+.eod-stat{background:var(--panel);border:1px solid var(--border);padding:1rem 1.25rem;position:relative;overflow:hidden}
+.eod-stat::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--purple)}
+.eod-stat.win::before{background:var(--green)}
+.eod-stat.loss::before{background:var(--red)}
+.eod-stat.flat::before{background:var(--tdim)}
+.eod-stat.pnl::before{background:var(--yellow)}
+.eod-slabel{font-family:var(--mono);font-size:.6rem;color:var(--tdim);letter-spacing:.15em;text-transform:uppercase;margin-bottom:.3rem}
+.eod-sval{font-family:var(--disp);font-size:1.8rem;font-weight:800;line-height:1}
+
+.eod-refresh-bar{display:flex;align-items:center;gap:1rem;margin-bottom:1rem}
+.eod-note{font-family:var(--mono);font-size:.65rem;color:var(--tdim)}
+
+.eod-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem}
+.eod-card{background:var(--panel);border:1px solid var(--border);padding:1.25rem;position:relative;overflow:hidden}
+.eod-card::before{content:'';position:absolute;top:0;left:0;width:100%;height:3px}
+.eod-card.win::before{background:linear-gradient(90deg,var(--green),var(--gdim))}
+.eod-card.loss::before{background:linear-gradient(90deg,var(--red),rgba(255,68,102,.4))}
+.eod-card.flat::before{background:var(--border2)}
+.eod-card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.eod-sym{font-family:var(--disp);font-size:1.4rem;font-weight:800;color:var(--tbright)}
+.eod-outcome{font-family:var(--mono);font-size:.65rem;font-weight:700;padding:.25rem .6rem;letter-spacing:.1em}
+.eod-outcome.win{color:var(--green);background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.3)}
+.eod-outcome.loss{color:var(--red);background:rgba(255,68,102,.1);border:1px solid rgba(255,68,102,.3)}
+.eod-outcome.flat{color:var(--tdim);background:rgba(255,255,255,.04);border:1px solid var(--border)}
+.eod-pnl{font-family:var(--disp);font-size:2rem;font-weight:800;margin-bottom:.6rem}
+.eod-pnl.pos{color:var(--green)} .eod-pnl.neg{color:var(--red)} .eod-pnl.zero{color:var(--tdim)}
+.eod-price-row{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin-bottom:.75rem}
+.eod-price-item{display:flex;flex-direction:column;gap:3px}
+.eod-price-label{font-family:var(--mono);font-size:.55rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase}
+.eod-price-val{font-family:var(--mono);font-size:.78rem;color:var(--tbright)}
+.eod-targets{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem}
+.eod-target{font-family:var(--mono);font-size:.6rem;padding:.2rem .5rem;border:1px solid;border-radius:2px}
+.eod-target.hit{border-color:rgba(0,255,136,.4);color:var(--green);background:rgba(0,255,136,.07)}
+.eod-target.miss{border-color:var(--border);color:var(--tdim)}
+.eod-target.stop-hit{border-color:rgba(255,68,102,.4);color:var(--red);background:rgba(255,68,102,.07)}
+.eod-meta{display:flex;gap:1rem;font-family:var(--mono);font-size:.65rem;color:var(--tdim);border-top:1px solid var(--border);padding-top:.6rem}
+
+.eod-empty{text-align:center;padding:3rem}
+.eod-empty-title{font-family:var(--disp);font-size:1.3rem;color:var(--tdim);letter-spacing:.1em}
+.eod-empty-sub{font-family:var(--mono);font-size:.75rem;color:var(--tdim);margin-top:.4rem;line-height:1.6}
+
 @media(max-width:900px){
   .stats-bar{grid-template-columns:repeat(3,1fr)}
   .bt-grid{grid-template-columns:1fr}
@@ -302,6 +347,7 @@ td{padding:.85rem 1rem;vertical-align:middle}
   .em-input-row{grid-template-columns:1fr 1fr}
   .em-calc-btn{grid-column:span 2}
   .em-checklist{grid-template-columns:1fr}
+  .eod-summary{grid-template-columns:repeat(3,1fr)}
 }
 @media(max-width:600px){
   .stats-bar{grid-template-columns:repeat(2,1fr)}
@@ -309,6 +355,7 @@ td{padding:.85rem 1rem;vertical-align:middle}
   .hdr-right{gap:.5rem}
   .em-stock-title{flex-wrap:wrap}
   .em-live-price{margin-left:0}
+  .eod-summary{grid-template-columns:repeat(2,1fr)}
 }
 </style>
 </head>
@@ -360,6 +407,7 @@ td{padding:.85rem 1rem;vertical-align:middle}
     <div class="tab" onclick="switchTab('sectors',this)">SECTOR ROTATION</div>
     <div class="tab" onclick="switchTab('backtest',this)">BACKTEST</div>
     <div class="tab tab-exit" onclick="switchTab('exit',this)">🎯 EXIT MANAGER</div>
+    <div class="tab tab-eod" onclick="switchTab('eod',this);loadEOD()">📊 EOD RESULTS</div>
   </div>
 
   <!-- ─── EVENING TAB ──────────────────────────────────────────── -->
@@ -593,6 +641,40 @@ td{padding:.85rem 1rem;vertical-align:middle}
       </div><!-- end em-results -->
     </div><!-- end em-wrap -->
   </div><!-- end tab-exit -->
+
+  <!-- ─── EOD RESULTS TAB ──────────────────────────────────────── -->
+  <div class="tab-content" id="tab-eod">
+    <div class="section-hdr">
+      <div class="section-title" style="color:var(--purple)">📊 End of Day Results</div>
+      <div class="section-sub">How did today's morning go-list perform? Win/loss vs entry price at close.</div>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="eod-summary" id="eodSummary" style="display:none">
+      <div class="eod-stat win"><div class="eod-slabel">Wins</div><div class="eod-sval" id="eodWins" style="color:var(--green)">—</div></div>
+      <div class="eod-stat loss"><div class="eod-slabel">Losses</div><div class="eod-sval" id="eodLosses" style="color:var(--red)">—</div></div>
+      <div class="eod-stat flat"><div class="eod-slabel">Win Rate</div><div class="eod-sval" id="eodWR" style="color:var(--blue)">—</div></div>
+      <div class="eod-stat pnl"><div class="eod-slabel">Avg P&L</div><div class="eod-sval" id="eodAvgPnl">—</div></div>
+      <div class="eod-stat"><div class="eod-slabel">Date</div><div class="eod-sval" id="eodDate" style="font-size:1rem;padding-top:.3rem;color:var(--purple)">—</div></div>
+    </div>
+
+    <!-- Refresh bar -->
+    <div class="eod-refresh-bar">
+      <button class="btn btn-purple" onclick="loadEOD(true)" id="eodRefreshBtn">↻ REFRESH RESULTS</button>
+      <span class="eod-note" id="eodNote">Results update automatically after market close (4pm ET). Click refresh to fetch latest.</span>
+    </div>
+
+    <!-- Cards -->
+    <div id="eodContent">
+      <div class="eod-empty">
+        <div class="eod-empty-title">NO EOD DATA YET</div>
+        <div class="eod-empty-sub">
+          Run the morning scan first, then click Refresh Results after market close (4pm ET).<br>
+          Results show each stock's close price vs your entry price from the morning go-list.
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="status-bar">
     <div class="smono"><span class="sdot"></span>DAYEDGE v4 · EVENING SCAN 6PM ET · MORNING SCAN 9AM ET · CLICK ROW FOR TRADE LEVELS · 🎯 EXIT MANAGER IN 5TH TAB</div>
@@ -1018,6 +1100,137 @@ async function emCalc(){
   }catch(err){
     emShowError('Could not fetch data. Check that Railway is running. ('+err.message+')');
   }
+}
+
+// ── EOD RESULTS ───────────────────────────────────────────────────────────────
+let eodLoaded = false;
+
+async function loadEOD(force=false){
+  if(eodLoaded && !force) return;
+  const btn = document.getElementById('eodRefreshBtn');
+  const note = document.getElementById('eodNote');
+  btn.disabled = true;
+  btn.textContent = '↻ FETCHING...';
+  note.textContent = 'Fetching end-of-day prices from Yahoo Finance...';
+
+  try{
+    const r = await fetch('/api/eod-results');
+    const d = await r.json();
+
+    if(d.error){
+      document.getElementById('eodContent').innerHTML = `
+        <div class="eod-empty">
+          <div class="eod-empty-title">NO DATA</div>
+          <div class="eod-empty-sub">${d.error}</div>
+        </div>`;
+      note.textContent = d.error;
+      btn.disabled = false;
+      btn.textContent = '↻ REFRESH RESULTS';
+      return;
+    }
+
+    renderEOD(d);
+    eodLoaded = true;
+    note.textContent = `Last updated: ${new Date(d.timestamp).toLocaleTimeString()} · Data from Yahoo Finance`;
+  }catch(e){
+    note.textContent = 'Error fetching results: ' + e.message;
+  }
+  btn.disabled = false;
+  btn.textContent = '↻ REFRESH RESULTS';
+}
+
+function renderEOD(data){
+  const s = data.summary;
+  const results = data.results || [];
+
+  // Summary stats
+  document.getElementById('eodSummary').style.display = 'grid';
+  document.getElementById('eodWins').textContent = s.wins;
+  document.getElementById('eodLosses').textContent = s.losses;
+  document.getElementById('eodWR').textContent = s.win_rate + '%';
+  const avgEl = document.getElementById('eodAvgPnl');
+  avgEl.textContent = (s.avg_pnl >= 0 ? '+' : '') + s.avg_pnl + '%';
+  avgEl.style.color = s.avg_pnl >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('eodDate').textContent = data.date || '—';
+
+  if(!results.length){
+    document.getElementById('eodContent').innerHTML = `
+      <div class="eod-empty">
+        <div class="eod-empty-title">NO RESULTS</div>
+        <div class="eod-empty-sub">No morning go-list stocks found to compare.</div>
+      </div>`;
+    return;
+  }
+
+  const el = document.getElementById('eodContent');
+  el.innerHTML = `<div class="eod-cards">${results.map(r => {
+    const cls = r.outcome === 'WIN' ? 'win' : r.outcome === 'LOSS' ? 'loss' : 'flat';
+    const pnlCls = r.pnl_pct > 0 ? 'pos' : r.pnl_pct < 0 ? 'neg' : 'zero';
+    const pnlSign = r.pnl_pct > 0 ? '+' : '';
+
+    // Target hit badges
+    const targetBadges = [
+      r.stop_hit ? `<span class="eod-target stop-hit">🛑 STOP HIT</span>` : '',
+      r.t1_hit   ? `<span class="eod-target hit">✓ T1 HIT</span>` : `<span class="eod-target miss">T1 MISS</span>`,
+      r.t2_hit   ? `<span class="eod-target hit">✓ T2 HIT</span>` : `<span class="eod-target miss">T2 MISS</span>`,
+      r.t3_hit   ? `<span class="eod-target hit">✓ T3 HIT</span>` : '',
+    ].filter(Boolean).join('');
+
+    // Best target reached label
+    const bestTarget = r.t3_hit ? '🏆 All 3 targets hit!' :
+                       r.t2_hit ? '✅ Target 2 reached' :
+                       r.t1_hit ? '✅ Target 1 reached' :
+                       r.stop_hit ? '🛑 Stop was triggered' :
+                       'No targets reached';
+
+    return `<div class="eod-card ${cls}">
+      <div class="eod-card-hdr">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="grade grade-${r.grade}">${r.grade}</span>
+          <span class="eod-sym">${r.symbol}</span>
+        </div>
+        <span class="eod-outcome ${cls}">${r.outcome}</span>
+      </div>
+
+      <div class="eod-pnl ${pnlCls}">${pnlSign}${r.pnl_pct}%
+        <span style="font-size:.9rem;font-family:var(--mono);margin-left:8px">
+          ${pnlSign}$${Math.abs(r.pnl_dollar).toFixed(2)}/share
+        </span>
+      </div>
+
+      <div class="eod-price-row">
+        <div class="eod-price-item">
+          <span class="eod-price-label">Entry</span>
+          <span class="eod-price-val" style="color:var(--blue)">$${r.entry}</span>
+        </div>
+        <div class="eod-price-item">
+          <span class="eod-price-label">Close</span>
+          <span class="eod-price-val" style="color:${r.close >= r.entry ? 'var(--green)' : 'var(--red)'}">$${r.close}</span>
+        </div>
+        <div class="eod-price-item">
+          <span class="eod-price-label">High</span>
+          <span class="eod-price-val" style="color:var(--green)">$${r.high}</span>
+        </div>
+        <div class="eod-price-item">
+          <span class="eod-price-label">Low</span>
+          <span class="eod-price-val" style="color:var(--red)">$${r.low}</span>
+        </div>
+      </div>
+
+      <div class="eod-targets">${targetBadges}</div>
+
+      <div style="font-family:var(--mono);font-size:.65rem;color:${r.t3_hit?'var(--yellow)':r.t2_hit?'var(--green)':r.t1_hit?'var(--blue)':r.stop_hit?'var(--red)':'var(--tdim)'};margin-bottom:.6rem">
+        ${bestTarget}
+      </div>
+
+      <div class="eod-meta">
+        <span>PM: ${r.pm_change > 0 ? '+' : ''}${r.pm_change}%</span>
+        <span>Score: ${r.evening_score}/10</span>
+        ${r.stop ? `<span style="color:var(--tdim)">Stop: $${r.stop}</span>` : ''}
+        ${r.target1 ? `<span style="color:var(--tdim)">T1: $${r.target1}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
