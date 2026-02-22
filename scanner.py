@@ -29,21 +29,112 @@ ML_MODEL_FILE = "ml_weights.json"
 TIME_OPT_FILE = "time_optimization.json"
 
 DEFAULT_WATCHLIST = [
-    "AAPL","MSFT","NVDA","AMD","TSLA","META","GOOGL","AMZN",
-    "NFLX","CRM","PLTR","SOFI","RIVN","LCID","NIO","BABA",
-    "COIN","HOOD","MARA","RIOT","UPST","AFRM","PYPL",
-    "SNAP","UBER","LYFT","ABNB","DASH","RBLX","SHOP","SPOT",
-    "ZM","ROKU","TWLO","DDOG","NET","CRWD","OKTA","SNOW"
+    # --- Mega Cap Tech ---
+    "AAPL", "MSFT", "NVDA", "AMD", "GOOGL", "META", "AMZN", "TSLA",
+
+    # --- Semiconductors ---
+    "AVGO", "MU", "SMCI", "ARM", "MRVL", "INTC", "QCOM", "AMAT",
+    "LRCX", "KLAC", "MPWR", "ONTO", "CRUS", "SWKS", "WOLF", "AMBA",
+
+    # --- Software / Cloud ---
+    "PLTR", "CRM", "SNOW", "DDOG", "NET", "CRWD", "NOW", "ZS",
+    "OKTA", "TWLO", "MDB", "BILL", "PATH", "AI", "GTLB", "S",
+    "HUBS", "TEAM", "CFLT", "ESTC", "RPD", "TENB", "FORG", "VEEV",
+    "DOCU", "DOCN", "APPN", "MNDY", "WIX", "SMAR", "PCTY", "PAYC",
+    "COUP", "AZPN", "ANGI", "BOX", "DRIP", "SPSC",
+
+    # --- AI / Quantum Computing ---
+    "IONQ", "QUBT", "RGTI", "QBTS", "SOUN", "BBAI", "ARQQ",
+    "LAES", "AIXI", "GFAI", "IROQ", "BIGB", "PRCT",
+
+    # --- Fintech ---
+    "COIN", "HOOD", "PYPL", "AFRM", "UPST", "SOFI", "MQ", "FOUR",
+    "GPN", "FIS", "FLYW", "LC", "OPEN", "RELY", "DAVE", "CURO",
+    "PAYO", "NRDS", "OPK", "RPAY",
+
+    # --- Consumer Tech / Social ---
+    "SHOP", "SPOT", "RBLX", "SNAP", "PINS", "UBER", "LYFT", "ABNB",
+    "DASH", "ZM", "ROKU", "NFLX", "BMBL", "MTCH", "DUOL", "APP",
+    "DKNG", "PENN", "CPNG", "CART", "MELI", "SE", "GRAB",
+
+    # --- EV / Clean Energy ---
+    "RIVN", "LCID", "NIO", "XPEV", "LI", "CHPT", "PLUG", "ENPH",
+    "SEDG", "ARRY", "NOVA", "RUN", "BLNK", "EVGO", "BE", "FCEL",
+    "SPWR", "SUNR", "STEM", "NKLA",
+
+    # --- Crypto Related ---
+    "MSTR", "MARA", "RIOT", "CLSK", "CIFR", "HUT", "WULF", "IREN",
+    "BTBT", "CORZ",
+
+    # --- China ADRs ---
+    "BABA", "JD", "PDD", "BIDU", "FUTU", "TIGR", "NTES", "EDU",
+    "TAL", "XPEV", "LI", "NIO",
+
+    # --- Biotech / Pharma ---
+    "MRNA", "BNTX", "CRSP", "BEAM", "PACB", "ILMN", "HIMS", "TDOC",
+    "NVAX", "ALNY", "IONS", "FATE", "EDIT", "NTLA", "INCY", "EXAS",
+    "NTRA", "ACCD", "GDRX", "BMRN", "SGEN", "RXRX", "VERV", "TWST",
+    "ALLO", "PRME", "RCKT", "GRPH", "SANA", "IMVT", "KYMR", "ARWR",
+    "PTGX", "VRTX", "REGN", "BIIB", "GILD",
+
+    # --- Defense / Space ---
+    "BA", "RKLB", "ASTS", "LUNR", "MNTS", "LMT", "RTX", "NOC",
+    "GD", "KTOS", "PLBY", "SPCE", "ASTR",
+
+    # --- Banks / Finance ---
+    "JPM", "BAC", "GS", "MS", "SCHW", "IBKR", "C", "WFC",
+    "BLK", "RJF", "LPLA", "MKTX",
+
+    # --- Retail / Consumer ---
+    "WMT", "TGT", "COST", "ETSY", "W", "CHWY", "CVNA", "KSS",
+    "M", "JWN", "GPS", "ONON", "BIRK", "ELF", "CELH", "LULU",
+    "NKE", "UAA",
+
+    # --- Healthcare ---
+    "UNH", "CVS", "CI", "HUM", "CNC", "MOH", "ONEM", "ACCD",
+    "DOCS", "PHYS", "WELL",
+
+    # --- Energy ---
+    "XOM", "CVX", "OXY", "DVN", "HAL", "SLB", "MRO", "FANG",
+    "COP", "BKR",
+
+    # --- Commodities / Mining ---
+    "FCX", "NEM", "GOLD", "AG", "WPM", "PAAS", "EXK", "HL",
+
+    # --- Airlines / Travel ---
+    "DAL", "UAL", "AAL", "LUV", "EXPE", "BKNG", "ABNB", "MAR",
+
+    # --- Media / Streaming ---
+    "DIS", "WBD", "PARA", "FUBO", "LGF",
+
+    # --- Meme / High Volatility ---
+    "GME", "AMC", "BBBY", "SPCE", "CLOV", "WKHS",
+
+    # --- ETF Proxies (high vol) ---
+    "ARKK", "SOXL", "TQQQ", "UVXY", "LABD",
+
+    # --- REITs / Infrastructure ---
+    "AMT", "CCI", "EQIX", "DLR", "VICI",
+
+    # --- Misc High Growth ---
+    "ZI", "PCVX", "TTD", "MGNI", "PUBM", "DV", "IAS",
+    "SEMR", "TASK", "LMND", "ROOT", "HIPPO", "MILE",
+    "JOBY", "ACHR", "LILM", "EVTL",
 ]
 
+# Remove duplicates while preserving order
+seen = set()
+DEFAULT_WATCHLIST = [x for x in DEFAULT_WATCHLIST if not (x in seen or seen.add(x))]
+
 SECTOR_ETFS = {
-    "XLK": ["AAPL","MSFT","NVDA","AMD","GOOGL","META","CRM","TWLO","DDOG","NET","CRWD","OKTA","SNOW","SHOP"],
-    "XLF": ["COIN","HOOD","PYPL","AFRM","UPST"],
-    "XLY": ["AMZN","TSLA","ABNB","DASH","UBER","LYFT","RBLX","SHOP"],
-    "XLC": ["GOOGL","META","NFLX","SNAP","SPOT","ROKU","ZM"],
-    "XME": ["MARA","RIOT"],
-    "XBI": ["SOFI"],
-    "XLI": ["RIVN","LCID","NIO","BABA"],
+    "XLK": ["AAPL","MSFT","NVDA","AMD","GOOGL","META","CRM","TWLO","DDOG","NET","CRWD","OKTA","SNOW","SHOP","INTC","QCOM","AVGO","NOW","ZS","PLTR","AI","ARM","SMCI","AMAT","HUBS","TEAM","MDB","BILL","DOCU","PAYC"],
+    "XLF": ["COIN","HOOD","PYPL","AFRM","UPST","SOFI","MQ","FOUR","GPN","FIS","JPM","BAC","GS","MS","SCHW","IBKR","C","WFC","BLK"],
+    "XLY": ["AMZN","TSLA","ABNB","DASH","UBER","LYFT","RBLX","SHOP","ETSY","W","CHWY","CVNA","BMBL","MTCH","DKNG","PENN","MELI","SE","ONON","CELH","LULU","NKE"],
+    "XLC": ["GOOGL","META","NFLX","SNAP","SPOT","ROKU","ZM","PINS","DIS","WBD","PARA","DUOL","APP"],
+    "XME": ["MARA","RIOT","CLSK","CIFR","HUT","WULF","IREN","BTBT","CORZ","FCX","NEM","GOLD","AG","WPM","PAAS"],
+    "XBI": ["MRNA","BNTX","CRSP","BEAM","NVAX","ALNY","IONS","HIMS","TDOC","ILMN","PACB","INCY","EXAS","NTRA","GDRX","BMRN","SGEN","RXRX","VRTX","REGN","BIIB","GILD"],
+    "XLI": ["RIVN","LCID","NIO","XPEV","LI","CHPT","PLUG","ENPH","BLNK","EVGO","BE","RKLB","ASTS","LUNR","BA","LMT","RTX","NOC","HAL","SLB","JOBY","ACHR"],
+    "XLE": ["XOM","CVX","OXY","DVN","SLB","HAL","MRO","FANG","COP","BKR"],
 }
 
 def safe_fetch(symbol, period="30d", interval="1d", prepost=False, retries=2):
@@ -65,10 +156,23 @@ def load_json(fp, default=None):
     except: pass
     return default if default is not None else {}
 
+def make_serializable(obj):
+    if isinstance(obj, dict):
+        return {k: make_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [make_serializable(i) for i in obj]
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    return obj
+
 def save_json(fp, data):
     try:
-        with open(fp,"w") as f:
-            json.dump(data, f, indent=2)
+        with open(fp, "w") as f:
+            json.dump(make_serializable(data), f, indent=2)
     except Exception as e:
         print(f"Error saving {fp}: {e}")
 
@@ -231,7 +335,7 @@ def get_risk_reward(df):
         last=df['Close'].iloc[-1]
         td=df['High'].tail(10).max()-last; sd=last-df['Low'].tail(10).min()
         if sd<=0: return None
-        return round(td/sd,2)
+        return round(float(td/sd),2)
     except: return None
 
 def calculate_trade_levels(df):
@@ -271,8 +375,8 @@ def check_unusual_options(symbol):
         coi=calls['openInterest'].sum(); poi=puts['openInterest'].sum()
         if coi==0: return False,None
         voi=(cv+pv)/(coi+poi) if (coi+poi)>0 else 0
-        unusual = voi>0.5 and cv>pv*1.5
-        return unusual,{"put_call_ratio":round(pv/cv if cv>0 else 0,2),"vol_oi_ratio":round(voi,2),"call_volume":int(cv),"put_volume":int(pv)}
+        unusual = bool(voi>0.5 and cv>pv*1.5)
+        return unusual,{"put_call_ratio":round(float(pv/cv) if cv>0 else 0,2),"vol_oi_ratio":round(float(voi),2),"call_volume":int(cv),"put_volume":int(pv)}
     except: return False,None
 
 def check_news_catalyst(symbol):
@@ -320,7 +424,7 @@ def get_best_trading_window():
     opt=load_json(TIME_OPT_FILE,{})
     if not opt: return "9:30-10:30 AM (collecting data)"
     bh=int(max(opt,key=opt.get).replace("hour_",""))
-    eh=bh+1; p="AM" if bh<12 else "PM"; ep="AM" if eh<12 else "PM"
+    eh=bh+1; p="AM" if bh<12 else "PM"
     h12=bh if bh<=12 else bh-12; e12=eh if eh<=12 else eh-12
     return f"{h12}:00-{e12}:00 {p}"
 
@@ -453,36 +557,37 @@ def run_scanner():
             last=float(df['Close'].iloc[-1]); dv=calculate_dollar_volume(df)
             if dv<5_000_000: continue
 
+            float_score,float_m=get_float_score(ticker)
+            earnings_risky,days_earn=get_earnings_risk(ticker)
+            earnings_risky=bool(earnings_risky)
+            sector_score,sector_etf=get_sector_score(sym,rotation)
+            unusual_options,options_detail=check_unusual_options(sym)
+            unusual_options=bool(unusual_options)
+            gap_fill_prob,gap_fill_mod=get_gap_fill_risk(sym,calculate_gap_percent(df))
+            trade_levels=calculate_trade_levels(df)
+
             features={
                 "gap_pct":calculate_gap_percent(df),
                 "rvol":calculate_relative_volume(df),
                 "atr_pct":calculate_atr_percent(df),
-                "tech_score":check_clean_technical_level(df),
+                "tech_score":int(check_clean_technical_level(df)),
                 "adx":calculate_adx(df),
-                "has_catalyst":check_news_catalyst(sym),
+                "has_catalyst":bool(check_news_catalyst(sym)),
                 "last_close":last,
-                "spy_modifier":spy_mod,
-                "sector_score":get_sector_score(sym,rotation)[0],
-                "float_score":get_float_score(ticker)[0],
-                "earnings_risky":get_earnings_risk(ticker)[0],
-                "rs_score":get_relative_strength(df,spy_df),
+                "spy_modifier":int(spy_mod),
+                "sector_score":int(sector_score),
+                "float_score":int(float_score),
+                "earnings_risky":earnings_risky,
+                "rs_score":int(get_relative_strength(df,spy_df)),
                 "pm_change":get_premarket_change(ticker),
                 "rr_ratio":get_risk_reward(df),
-                "weekly_trend":check_weekly_trend(sym),
+                "weekly_trend":int(check_weekly_trend(sym)),
                 "dollar_vol":dv,
-                "gap_fill_modifier":get_gap_fill_risk(sym,calculate_gap_percent(df))[1],
-                "unusual_options":check_unusual_options(sym)[0],
+                "gap_fill_modifier":int(gap_fill_mod),
+                "unusual_options":unusual_options,
             }
 
-            float_score,float_m=get_float_score(ticker)
-            earnings_risky,days_earn=get_earnings_risk(ticker)
-            sector_score,sector_etf=get_sector_score(sym,rotation)
-            unusual_options,options_detail=check_unusual_options(sym)
-            unusual_options = bool(unusual_options)
-            gap_fill_prob,_=get_gap_fill_risk(sym,features["gap_pct"])
-            trade_levels=calculate_trade_levels(df)
             ml_adj=get_ml_adjustment(features)
-
             score,reasons=score_stock_v3(features,ml_adj)
 
             if score>=3:
@@ -566,8 +671,8 @@ def score_stock_v3(features, ml_adj=0):
     if cat: score+=1; reasons.append("✅ News catalyst detected")
 
     score+=spy
-    if spy>0: reasons.append(f"✅ Market bullish (SPY)")
-    elif spy<0: reasons.append(f"🔴 Market bearish (SPY) — caution")
+    if spy>0: reasons.append("✅ Market bullish (SPY)")
+    elif spy<0: reasons.append("🔴 Market bearish (SPY) — caution")
 
     score+=sec
     if sec>0: reasons.append("✅ Sector strong")
