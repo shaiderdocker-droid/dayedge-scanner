@@ -912,7 +912,7 @@ def run_scanner():
             ml_adj = get_ml_adjustment(features)
             score, reasons = score_stock_v4(features, ml_adj)
 
-            if score >= 3:
+            if score >= 0:
                 results.append({
                     "symbol": sym, "score": score, "last_close": round(last, 2),
                     "gap_pct": features["gap_pct"], "rvol": features["rvol"],
