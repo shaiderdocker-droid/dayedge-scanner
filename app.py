@@ -196,6 +196,112 @@ def get_quote(symbol):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/eod-results')
+def get_eod_results():
+    """End-of-day results for morning go-list stocks. Fetches close vs entry price."""
+    EOD_FILE = "eod_results.json"
+    # Return cached if already run today
+    cached = load_file(EOD_FILE)
+    if cached and cached.get("date") == datetime.now().strftime("%Y-%m-%d"):
+        return jsonify(cached)
+
+    morning = load_file("morning_golist.json")
+    if not morning or not morning.get("golist"):
+        return jsonify({"error": "No morning go-list found. Run morning scan first.", "results": []})
+
+    results = []
+    total_pnl = 0
+    wins = 0
+    losses = 0
+
+    for stock in morning["golist"]:
+        sym = stock["symbol"]
+        entry = stock.get("trade_levels", {}).get("entry") or stock.get("prev_close")
+        if not entry:
+            continue
+        try:
+            ticker = yf.Ticker(sym)
+            df = ticker.history(period="2d", interval="1d")
+            if df is None or len(df) < 1:
+                continue
+
+            today_close = round(float(df['Close'].iloc[-1]), 2)
+            today_open  = round(float(df['Open'].iloc[-1]), 2)
+            today_high  = round(float(df['High'].iloc[-1]), 2)
+            today_low   = round(float(df['Low'].iloc[-1]), 2)
+            today_vol   = int(df['Volume'].iloc[-1])
+
+            pnl_pct  = round(((today_close - entry) / entry) * 100, 2)
+            pnl_dollar = round(today_close - entry, 2)
+
+            # How close did it get to each target
+            tl = stock.get("trade_levels", {})
+            t1_hit = bool(tl.get("target1") and today_high >= tl["target1"])
+            t2_hit = bool(tl.get("target2") and today_high >= tl["target2"])
+            t3_hit = bool(tl.get("target3") and today_high >= tl["target3"])
+            stop_hit = bool(tl.get("stop") and today_low <= tl["stop"])
+
+            outcome = "WIN" if pnl_pct > 0.5 else "LOSS" if pnl_pct < -0.5 else "FLAT"
+            if outcome == "WIN": wins += 1
+            elif outcome == "LOSS": losses += 1
+            total_pnl += pnl_pct
+
+            results.append({
+                "symbol":      sym,
+                "grade":       stock.get("grade", "C"),
+                "entry":       round(float(entry), 2),
+                "close":       today_close,
+                "open":        today_open,
+                "high":        today_high,
+                "low":         today_low,
+                "volume":      today_vol,
+                "pnl_pct":     pnl_pct,
+                "pnl_dollar":  pnl_dollar,
+                "outcome":     outcome,
+                "t1_hit":      t1_hit,
+                "t2_hit":      t2_hit,
+                "t3_hit":      t3_hit,
+                "stop_hit":    stop_hit,
+                "target1":     tl.get("target1"),
+                "target2":     tl.get("target2"),
+                "target3":     tl.get("target3"),
+                "stop":        tl.get("stop"),
+                "pm_change":   stock.get("pm_change", 0),
+                "evening_score": stock.get("evening_score", 0),
+            })
+        except Exception as e:
+            print(f"EOD error {sym}: {e}")
+            continue
+
+    results.sort(key=lambda x: x["pnl_pct"], reverse=True)
+    avg_pnl = round(total_pnl / len(results), 2) if results else 0
+    output = {
+        "date":      datetime.now().strftime("%Y-%m-%d"),
+        "timestamp": datetime.now().isoformat(),
+        "results":   results,
+        "summary": {
+            "total":    len(results),
+            "wins":     wins,
+            "losses":   losses,
+            "flat":     len(results) - wins - losses,
+            "win_rate": round((wins / len(results)) * 100, 1) if results else 0,
+            "avg_pnl":  avg_pnl,
+            "total_pnl": round(total_pnl, 2),
+        }
+    }
+    # Save so repeat calls are instant
+    try:
+        with open(EOD_FILE, "w") as f:
+            json.dump(output, f, indent=2)
+    except: pass
+    return jsonify(output)
+
+@app.route('/api/eod-history')
+def get_eod_history():
+    """Returns last 30 days of EOD results for trend tracking."""
+    history = load_file("eod_history.json") or []
+    return jsonify(history)
+
 @app.route('/api/status')
 def status():
     return jsonify({
