@@ -942,8 +942,14 @@ function renderMorning(data){
         <div class="go-lvl-row"><span style="color:var(--tdim)">T2</span><span style="color:var(--yellow)">$${tl.target2}</span></div>
         <div class="go-lvl-row"><span style="color:var(--tdim)">T3</span><span style="color:var(--orange)">$${tl.target3}</span></div>
       </div>`:''}
+      <div class="traded-toggle" id="tgl-${s.symbol}">
+        <button class="traded-btn" id="tyes-${s.symbol}" onclick="setTraded('${s.symbol}',true)">✅ I TRADED THIS</button>
+        <button class="traded-btn" id="tno-${s.symbol}"  onclick="setTraded('${s.symbol}',false)">❌ SKIPPED</button>
+      </div>
     </div>`;
   }).join('');
+  // Restore any saved traded state for today
+  loadTradedState();
 }
 
 // ── RENDER SECTORS ────────────────────────────────────────────────────────────
@@ -1235,15 +1241,33 @@ function renderEOD(data){
   const s = data.summary;
   const results = data.results || [];
 
-  // Summary stats
-  document.getElementById('eodSummary').style.display = 'grid';
-  document.getElementById('eodWins').textContent = s.wins;
-  document.getElementById('eodLosses').textContent = s.losses;
-  document.getElementById('eodWR').textContent = s.win_rate + '%';
-  const avgEl = document.getElementById('eodAvgPnl');
-  avgEl.textContent = (s.avg_pnl >= 0 ? '+' : '') + s.avg_pnl + '%';
-  avgEl.style.color = s.avg_pnl >= 0 ? 'var(--green)' : 'var(--red)';
+  // Old summary bar (hide it — replaced by dual panel)
+  document.getElementById('eodSummary').style.display = 'none';
   document.getElementById('eodDate').textContent = data.date || '—';
+
+  // Dual summary panel
+  const dual = document.getElementById('eodDual');
+  dual.style.display = 'grid';
+
+  const mkStats = (wins,losses,wr,avg,total) => [
+    ['Wins', wins, 'var(--green)'],
+    ['Losses', losses, 'var(--red)'],
+    ['Win Rate', wr+'%', wr>=55?'var(--green)':wr<45?'var(--red)':'var(--yellow)'],
+    ['Avg P&L', (avg>=0?'+':'')+avg+'%', avg>=0?'var(--green)':'var(--red)'],
+  ].map(([l,v,c])=>`
+    <div>
+      <div style="font-family:var(--mono);font-size:.55rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.2rem">${l}</div>
+      <div style="font-family:var(--disp);font-size:1.3rem;font-weight:800;color:${c}">${v}</div>
+      ${l==='Win Rate'?`<div style="font-family:var(--mono);font-size:.55rem;color:var(--tdim)">${total} stocks</div>`:''}
+    </div>`).join('');
+
+  document.getElementById('eodAllStats').innerHTML = mkStats(s.wins,s.losses,s.win_rate,s.avg_pnl,s.total);
+
+  if(s.traded_count > 0){
+    document.getElementById('eodTradedStats').innerHTML = mkStats(s.traded_wins,s.traded_losses,s.traded_win_rate,s.traded_avg_pnl,s.traded_count);
+  } else {
+    document.getElementById('eodTradedStats').innerHTML = `<div style="grid-column:span 4;font-family:var(--mono);font-size:.65rem;color:var(--tdim);padding:.4rem 0">Mark trades as ✅ I TRADED THIS in the Morning Go-List tab to see your actual performance here.</div>`;
+  }
 
   if(!results.length){
     document.getElementById('eodContent').innerHTML = `
@@ -1280,6 +1304,7 @@ function renderEOD(data){
         <div style="display:flex;align-items:center;gap:8px">
           <span class="grade grade-${r.grade}">${r.grade}</span>
           <span class="eod-sym">${r.symbol}</span>
+          ${r.traded===true?'<span style="font-family:var(--mono);font-size:.55rem;padding:.12rem .4rem;border:1px solid;letter-spacing:.08em;color:var(--green);border-color:rgba(0,255,136,.4);background:rgba(0,255,136,.07)">TRADED</span>':r.traded===false?'<span style="font-family:var(--mono);font-size:.55rem;padding:.12rem .4rem;border:1px solid;letter-spacing:.08em;color:var(--red);border-color:rgba(255,68,102,.4);background:rgba(255,68,102,.07)">SKIPPED</span>':'<span style="font-family:var(--mono);font-size:.55rem;padding:.12rem .4rem;border:1px solid var(--border);letter-spacing:.08em;color:var(--tdim)">UNSET</span>'}
         </div>
         <span class="eod-outcome ${cls}">${r.outcome}</span>
       </div>
@@ -1601,6 +1626,71 @@ async function loadJournal(){
   }catch(e){
     document.getElementById('journalContent').innerHTML = `<div class="empty"><div class="empty-title">ERROR</div><div class="empty-sub">${e.message}</div></div>`;
   }
+}
+
+// ── TRADED STATE ─────────────────────────────────────────────────────────────
+const TODAY = new Date().toISOString().slice(0,10);
+
+async function setTraded(symbol, traded){
+  // Update button UI immediately
+  const yBtn = document.getElementById('tyes-'+symbol);
+  const nBtn = document.getElementById('tno-'+symbol);
+  if(!yBtn || !nBtn) return;
+
+  if(traded){
+    yBtn.classList.add('active-yes');
+    nBtn.classList.remove('active-no');
+  } else {
+    nBtn.classList.add('active-no');
+    yBtn.classList.remove('active-yes');
+  }
+
+  try{
+    await fetch('/api/trade-log', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ symbol, date: TODAY, traded })
+    });
+    toast(traded ? '✅ '+symbol+' marked as TRADED' : '❌ '+symbol+' marked as SKIPPED');
+  }catch(e){
+    toast('Could not save trade status', true);
+  }
+}
+
+async function loadTradedState(){
+  try{
+    const r = await fetch('/api/trade-log');
+    const log = await r.json();
+    // Apply saved state to any visible toggle buttons
+    Object.values(log).forEach(entry => {
+      if(entry.date !== TODAY) return;
+      const sym = entry.symbol;
+      const yBtn = document.getElementById('tyes-'+sym);
+      const nBtn = document.getElementById('tno-'+sym);
+      if(!yBtn || !nBtn) return;
+      if(entry.traded === true){
+        yBtn.classList.add('active-yes');
+        nBtn.classList.remove('active-no');
+      } else if(entry.traded === false){
+        nBtn.classList.add('active-no');
+        yBtn.classList.remove('active-yes');
+      }
+    });
+  }catch(e){}
+}
+
+async function saveEODHistory(){
+  const btn = document.getElementById('eodSaveBtn');
+  btn.disabled = true;
+  btn.textContent = '💾 SAVING...';
+  try{
+    const r = await fetch('/api/save-eod-history', {method:'POST'});
+    const d = await r.json();
+    if(d.error){ toast(d.error, true); }
+    else { toast('✅ Saved to history — '+d.days_in_history+' days tracked'); }
+  }catch(e){ toast('Save failed: '+e.message, true); }
+  btn.disabled = false;
+  btn.textContent = '💾 SAVE TO HISTORY';
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
