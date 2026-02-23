@@ -11,19 +11,66 @@ All 8 live trading enhancements:
 8. Weekly performance journal
 """
 
-from flask import Flask, jsonify, Response
+from flask import Flask, jsonify, Response, request, session, redirect, url_for
 from apscheduler.schedulers.background import BackgroundScheduler
 from scanner import run_scanner, run_morning_scan, run_backtest
-import json, os, threading, statistics
+from functools import wraps
+import json, os, threading, statistics, hashlib, secrets
 import numpy as np
 import yfinance as yf
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
 latest_results = None
 latest_morning = None
 scan_status = {"running": False, "task": None, "started": None, "error": None}
+
+# ── AUTH CONFIG ───────────────────────────────────────────────────────────────
+# Credentials stored in environment variables for security.
+# Set these in Railway: ADMIN_USER, ADMIN_PASS, USER_USER, USER_PASS
+# Passwords are stored as SHA-256 hashes.
+
+def hash_pw(pw):
+    return hashlib.sha256(pw.encode()).hexdigest()
+
+USERS = {
+    os.environ.get('ADMIN_USER', 'admin'): {
+        'password_hash': hash_pw(os.environ.get('ADMIN_PASS', 'dayedge_admin_2026')),
+        'role': 'admin'
+    },
+    os.environ.get('USER_USER', 'trader'): {
+        'password_hash': hash_pw(os.environ.get('USER_PASS', 'dayedge_trader_2026')),
+        'role': 'user'
+    }
+}
+
+# Tabs/features accessible by role
+ROLE_ACCESS = {
+    'admin': ['watchlist','morning','sectors','backtest','exit','live','premarket','risk','eod','patterns','journal'],
+    'user':  ['watchlist','morning','sectors','backtest','exit','live','premarket','risk']
+}
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'username' not in session:
+            if request.path.startswith('/api/'):
+                return jsonify({'error': 'Not authenticated', 'redirect': '/login'}), 401
+            return redirect('/login')
+        return f(*args, **kwargs)
+    return decorated
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'username' not in session:
+            return jsonify({'error': 'Not authenticated', 'redirect': '/login'}), 401
+        if session.get('role') != 'admin':
+            return jsonify({'error': 'Admin access required'}), 403
+        return f(*args, **kwargs)
+    return decorated
 
 # ── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -128,12 +175,59 @@ scheduler.start()
 
 # ── CORE ROUTES ───────────────────────────────────────────────────────────────
 
+# ── AUTH ROUTES ──────────────────────────────────────────────────────────────
+
+@app.route('/login', methods=['GET'])
+def login_page():
+    if 'username' in session:
+        return redirect('/')
+    with open(os.path.join(os.path.dirname(__file__), 'static', 'login.html'), 'r') as f:
+        return Response(f.read(), mimetype='text/html')
+
+@app.route('/api/login', methods=['POST'])
+def do_login():
+    data     = request.get_json() or {}
+    username = data.get('username', '').strip().lower()
+    password = data.get('password', '')
+
+    user = USERS.get(username)
+    if not user or user['password_hash'] != hash_pw(password):
+        return jsonify({'error': 'Invalid username or password'}), 401
+
+    session.permanent = True
+    session['username'] = username
+    session['role']     = user['role']
+    return jsonify({
+        'ok':      True,
+        'username': username,
+        'role':    user['role'],
+        'access':  ROLE_ACCESS[user['role']]
+    })
+
+@app.route('/api/logout', methods=['POST'])
+def do_logout():
+    session.clear()
+    return jsonify({'ok': True})
+
+@app.route('/api/me')
+def me():
+    if 'username' not in session:
+        return jsonify({'authenticated': False}), 401
+    return jsonify({
+        'authenticated': True,
+        'username': session['username'],
+        'role':     session['role'],
+        'access':   ROLE_ACCESS[session['role']]
+    })
+
 @app.route('/')
+@login_required
 def index():
     with open(os.path.join(os.path.dirname(__file__), 'static', 'index.html'), 'r') as f:
         return Response(f.read(), mimetype='text/html')
 
 @app.route('/api/scan')
+@login_required
 def get_scan():
     global latest_results
     if latest_results is None:
@@ -143,6 +237,7 @@ def get_scan():
     return jsonify(make_serializable(latest_results))
 
 @app.route('/api/morning')
+@login_required
 def get_morning():
     global latest_morning
     if latest_morning is None:
@@ -152,6 +247,7 @@ def get_morning():
     return jsonify(make_serializable(latest_morning))
 
 @app.route('/api/backtest')
+@login_required
 def get_backtest():
     data = load_file("backtest_results.json")
     if data is None:
@@ -159,6 +255,7 @@ def get_backtest():
     return jsonify(make_serializable(data))
 
 @app.route('/api/scan-status')
+@login_required
 def get_scan_status():
     return jsonify({
         "running": scan_status["running"],
@@ -168,6 +265,7 @@ def get_scan_status():
     })
 
 @app.route('/api/run-scan', methods=['POST'])
+@login_required
 def trigger_scan():
     global scan_status
     if scan_status["running"]:
@@ -178,6 +276,7 @@ def trigger_scan():
     return jsonify({"status": "started"})
 
 @app.route('/api/run-morning', methods=['POST'])
+@login_required
 def trigger_morning():
     global scan_status
     if scan_status["running"]:
@@ -187,6 +286,7 @@ def trigger_morning():
     return jsonify({"status": "started"})
 
 @app.route('/api/run-backtest', methods=['POST'])
+@login_required
 def trigger_backtest():
     global scan_status
     if scan_status["running"]:
@@ -198,6 +298,7 @@ def trigger_backtest():
 # ── FEATURE 1: LIVE INTRADAY TRACKER ─────────────────────────────────────────
 
 @app.route('/api/live-tracker')
+@login_required
 def live_tracker():
     """Real-time prices for morning go-list. Shows P&L vs entry and target zones."""
     morning = load_file("morning_golist.json")
@@ -284,6 +385,7 @@ def live_tracker():
 # ── FEATURE 2 & 3: ENTRY TIMING + PRE-MARKET MOMENTUM ────────────────────────
 
 @app.route('/api/premarket-momentum')
+@login_required
 def premarket_momentum():
     """Pre-market momentum ranker — volume surge and price acceleration."""
     morning = load_file("morning_golist.json")
@@ -400,6 +502,7 @@ def score_gap_quality(sym, gap_pct, ticker_obj):
 # ── FEATURE 5: RISK DASHBOARD ─────────────────────────────────────────────────
 
 @app.route('/api/risk-dashboard')
+@login_required
 def risk_dashboard():
     """Pre-market risk summary: total exposure, max loss, position sizing guide."""
     morning = load_file("morning_golist.json")
@@ -475,6 +578,7 @@ def risk_dashboard():
 # ── FEATURE 7: SPY LIVE CONDITION ─────────────────────────────────────────────
 
 @app.route('/api/spy-condition')
+@login_required
 def spy_condition():
     """Live SPY trend — green/yellow/red signal for intraday."""
     try:
@@ -534,6 +638,7 @@ def spy_condition():
 # ── FEATURE 4: EOD RESULTS + PATTERN RECOGNITION ──────────────────────────────
 
 @app.route('/api/eod-results')
+@admin_required
 def get_eod_results():
     """EOD results with force-refresh support."""
     from flask import request
@@ -666,11 +771,13 @@ def get_eod_results():
     return jsonify(output)
 
 @app.route('/api/eod-history')
+@admin_required
 def get_eod_history():
     history = load_file("eod_history.json") or []
     return jsonify(history)
 
 @app.route('/api/save-eod-history', methods=['POST'])
+@admin_required
 def save_eod_history():
     """Manually save today's EOD results into the history file.
     Called by the frontend when the user clicks 'Save to History'.
@@ -702,11 +809,13 @@ def save_trade_log(log):
     save_file(TRADE_LOG_FILE, log)
 
 @app.route('/api/trade-log', methods=['GET'])
+@login_required
 def get_trade_log():
     """Return the full trade log keyed by date+symbol."""
     return jsonify(load_trade_log())
 
 @app.route('/api/trade-log', methods=['POST'])
+@login_required
 def update_trade_log():
     """Toggle a trade as TRADED or SKIPPED for a given date+symbol.
     Body: { "symbol": "NVDA", "date": "2026-02-23", "traded": true }
@@ -752,6 +861,7 @@ def update_trade_log():
 # ── FEATURE 4 cont: PATTERN RECOGNITION ──────────────────────────────────────
 
 @app.route('/api/patterns')
+@admin_required
 def get_patterns():
     """Analyze EOD history to find YOUR personal edge patterns."""
     history = load_file("eod_history.json") or []
@@ -880,6 +990,7 @@ def _insight(wr, avg, label):
 # ── FEATURE 8: WEEKLY JOURNAL ─────────────────────────────────────────────────
 
 @app.route('/api/weekly-journal')
+@admin_required
 def weekly_journal():
     """Auto-generated weekly performance summary from EOD history."""
     history = load_file("eod_history.json") or []
@@ -961,6 +1072,7 @@ def weekly_journal():
 # ── EXIT MANAGER QUOTE ────────────────────────────────────────────────────────
 
 @app.route('/api/quote/<symbol>')
+@login_required
 def get_quote(symbol):
     try:
         sym    = symbol.upper().strip()
