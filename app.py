@@ -614,6 +614,23 @@ def get_eod_results():
 
     results.sort(key=lambda x: x["pnl_pct"], reverse=True)
     avg_pnl = round(total_pnl / len(results), 2) if results else 0
+
+    # Load trade log so we know which the user actually traded
+    trade_log = load_trade_log()
+    today = datetime.now().strftime("%Y-%m-%d")
+    for r in results:
+        key = f"{today}_{r['symbol']}"
+        log_entry = trade_log.get(key, {})
+        r["traded"]        = log_entry.get("traded", None)   # None = not set yet
+        r["actual_shares"] = log_entry.get("shares", 0)
+        r["actual_entry"]  = log_entry.get("entry", 0)
+
+    # Separate traded vs not-traded for summary
+    traded_results = [r for r in results if r.get("traded") is True]
+    tw = sum(1 for r in traded_results if r.get("outcome") == "WIN")
+    tl_count = sum(1 for r in traded_results if r.get("outcome") == "LOSS")
+    t_avg = round(sum(r["pnl_pct"] for r in traded_results) / len(traded_results), 2) if traded_results else 0
+
     output = {
         "date":      datetime.now().strftime("%Y-%m-%d"),
         "timestamp": datetime.now().isoformat(),
@@ -626,15 +643,111 @@ def get_eod_results():
             "win_rate":  round((wins / len(results)) * 100, 1) if results else 0,
             "avg_pnl":   avg_pnl,
             "total_pnl": round(total_pnl, 2),
+            # Traded-only summary
+            "traded_count":   len(traded_results),
+            "traded_wins":    tw,
+            "traded_losses":  tl_count,
+            "traded_win_rate": round((tw / len(traded_results)) * 100, 1) if traded_results else 0,
+            "traded_avg_pnl": t_avg,
         }
     }
     save_file(EOD_FILE, output)
+
+    # ── Auto-save to history every time EOD is refreshed ──────────────────
+    try:
+        history = load_file("eod_history.json") or []
+        history = [h for h in history if h.get("date") != output["date"]]
+        history.append(output)
+        history = sorted(history, key=lambda x: x.get("date",""))[-60:]
+        save_file("eod_history.json", history)
+    except Exception as e:
+        print(f"History auto-save error: {e}")
+
     return jsonify(output)
 
 @app.route('/api/eod-history')
 def get_eod_history():
     history = load_file("eod_history.json") or []
     return jsonify(history)
+
+@app.route('/api/save-eod-history', methods=['POST'])
+def save_eod_history():
+    """Manually save today's EOD results into the history file.
+    Called by the frontend when the user clicks 'Save to History'.
+    Also called automatically whenever EOD results are refreshed.
+    """
+    try:
+        eod = load_file("eod_results.json")
+        if not eod:
+            return jsonify({"error": "No EOD results to save. Refresh EOD Results first."}), 400
+
+        history = load_file("eod_history.json") or []
+        # Replace existing entry for same date (idempotent)
+        history = [h for h in history if h.get("date") != eod.get("date")]
+        history.append(eod)
+        history = sorted(history, key=lambda x: x.get("date",""))[-60:]  # keep last 60 days
+        save_file("eod_history.json", history)
+        return jsonify({"ok": True, "days_in_history": len(history), "date": eod.get("date")})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ── TRADE LOG — track which stocks user actually traded ───────────────────────
+
+TRADE_LOG_FILE = "trade_log.json"
+
+def load_trade_log():
+    return load_file(TRADE_LOG_FILE) or {}
+
+def save_trade_log(log):
+    save_file(TRADE_LOG_FILE, log)
+
+@app.route('/api/trade-log', methods=['GET'])
+def get_trade_log():
+    """Return the full trade log keyed by date+symbol."""
+    return jsonify(load_trade_log())
+
+@app.route('/api/trade-log', methods=['POST'])
+def update_trade_log():
+    """Toggle a trade as TRADED or SKIPPED for a given date+symbol.
+    Body: { "symbol": "NVDA", "date": "2026-02-23", "traded": true }
+    """
+    from flask import request
+    try:
+        body   = request.get_json()
+        symbol = body.get("symbol", "").upper().strip()
+        date   = body.get("date", datetime.now().strftime("%Y-%m-%d"))
+        traded = bool(body.get("traded", True))
+        shares = int(body.get("shares", 0))
+        entry  = float(body.get("entry", 0))
+
+        if not symbol:
+            return jsonify({"error": "Symbol required"}), 400
+
+        log = load_trade_log()
+        key = f"{date}_{symbol}"
+        log[key] = {
+            "symbol":  symbol,
+            "date":    date,
+            "traded":  traded,
+            "shares":  shares,
+            "entry":   entry,
+            "updated": datetime.now().isoformat()
+        }
+        save_trade_log(log)
+
+        # Also update eod_results.json so EOD tab reflects traded status
+        eod = load_file("eod_results.json")
+        if eod and eod.get("date") == date:
+            for r in eod.get("results", []):
+                if r["symbol"] == symbol:
+                    r["traded"] = traded
+                    r["actual_shares"] = shares
+                    r["actual_entry"]  = entry if entry > 0 else r.get("entry", 0)
+            save_file("eod_results.json", eod)
+
+        return jsonify({"ok": True, "key": key, "traded": traded})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ── FEATURE 4 cont: PATTERN RECOGNITION ──────────────────────────────────────
 
@@ -648,6 +761,10 @@ def get_patterns():
     all_trades = []
     for day in history:
         for r in day.get("results", []):
+            # Only count trades the user actually made (traded=True)
+            # If traded is None (never set), include it anyway for backwards compat
+            if r.get("traded") is False:
+                continue
             r["date"] = day.get("date", "")
             all_trades.append(r)
 
@@ -788,6 +905,9 @@ def weekly_journal():
         all_trades = []
         for d in days:
             for r in d.get("results", []):
+                # Only count trades the user actually made
+                if r.get("traded") is False:
+                    continue
                 all_trades.append(r)
 
         if not all_trades:
