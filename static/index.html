@@ -372,6 +372,10 @@ td{padding:.85rem 1rem;vertical-align:middle}
     <div class="logo-icon"></div>
     <div class="logo-text">Day<span>Edge</span></div>
   </div>
+  <div id="spyPill" class="spy-pill spy-neut" style="font-family:var(--mono);font-size:.68rem;padding:.25rem .7rem;border:1px solid;letter-spacing:.08em;display:flex;align-items:center;gap:.5rem;color:var(--yellow);border-color:rgba(255,209,102,.4);background:rgba(255,209,102,.07)">
+    <span id="spyDot" style="width:7px;height:7px;border-radius:50%;background:var(--yellow);animation:pulse 2s infinite;flex-shrink:0"></span>
+    <span id="spyText">SPY —</span>
+  </div>
   <div class="hdr-right">
     <div class="mkt-badge neutral" id="mktBadge">MARKET: —</div>
     <div class="window-badge" id="windowBadge">⏱ —</div>
@@ -408,6 +412,11 @@ td{padding:.85rem 1rem;vertical-align:middle}
     <div class="tab" onclick="switchTab('backtest',this)">BACKTEST</div>
     <div class="tab tab-exit" onclick="switchTab('exit',this)">🎯 EXIT MANAGER</div>
     <div class="tab tab-eod" onclick="switchTab('eod',this);loadEOD()">📊 EOD RESULTS</div>
+    <div class="tab tab-live" onclick="switchTab('live',this);loadLive()">🟢 LIVE TRACKER</div>
+    <div class="tab tab-pm" onclick="switchTab('pm',this);loadPM()">☀ PRE-MARKET</div>
+    <div class="tab tab-risk" onclick="switchTab('risk',this);loadRisk()">⚠ RISK</div>
+    <div class="tab tab-pattern" onclick="switchTab('pattern',this);loadPatterns()">🔍 PATTERNS</div>
+    <div class="tab tab-journal" onclick="switchTab('journal',this);loadJournal()">📓 JOURNAL</div>
   </div>
 
   <!-- ─── EVENING TAB ──────────────────────────────────────────── -->
@@ -676,8 +685,91 @@ td{padding:.85rem 1rem;vertical-align:middle}
     </div>
   </div>
 
+
+  <!-- ─── LIVE TRACKER TAB ──────────────────────────────────────── -->
+  <div class="tab-content" id="tab-live">
+    <div class="section-hdr">
+      <div class="section-title" style="color:var(--green)">🟢 Live Intraday Tracker</div>
+      <div class="section-sub">Real-time prices vs entry — refreshes every 60 seconds during market hours</div>
+    </div>
+    <div class="refresh-bar">
+      <button class="btn btn-green" onclick="loadLive(true)" id="liveRefreshBtn">↻ REFRESH NOW</button>
+      <span class="refresh-note" id="liveNote">Auto-refreshes every 60 seconds during market hours</span>
+    </div>
+    <div id="liveContent">
+      <div class="empty"><div class="empty-title">NO LIVE DATA</div><div class="empty-sub">Run the morning scan first, then come back here after market open.</div></div>
+    </div>
+  </div>
+
+  <!-- ─── PRE-MARKET MOMENTUM TAB ─────────────────────────────────── -->
+  <div class="tab-content" id="tab-pm">
+    <div class="section-hdr">
+      <div class="section-title" style="color:var(--blue)">☀ Pre-Market Momentum</div>
+      <div class="section-sub">Volume surge, price acceleration & entry timing signals. Check at 9am ET before the open.</div>
+    </div>
+    <div class="refresh-bar">
+      <button class="btn btn-blue" onclick="loadPM(true)" id="pmRefreshBtn">↻ REFRESH</button>
+      <span class="refresh-note" id="pmNote">Fetches live pre-market data from Yahoo Finance</span>
+    </div>
+    <div id="pmContent">
+      <div class="empty"><div class="empty-title">NO DATA</div><div class="empty-sub">Run morning scan first. This tab is most useful between 8-9:30am ET.</div></div>
+    </div>
+  </div>
+
+  <!-- ─── RISK DASHBOARD TAB ───────────────────────────────────────── -->
+  <div class="tab-content" id="tab-risk">
+    <div class="section-hdr">
+      <div class="section-title" style="color:var(--red)">⚠ Risk Dashboard</div>
+      <div class="section-sub">Position sizing guide — how many shares to buy so one trade never blows up your account</div>
+    </div>
+    <div style="background:var(--panel);border:1px solid var(--border);padding:.9rem 1.3rem;margin-bottom:1rem;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:.6rem">
+        <label style="font-family:var(--mono);font-size:.6rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase">Account Size $</label>
+        <input type="number" id="riskAccount" value="25000" min="1000" step="1000"
+          style="background:var(--bg);border:1px solid var(--border2);color:var(--tbright);font-family:var(--mono);font-size:.88rem;padding:.32rem .55rem;outline:none;width:120px"
+          oninput="loadRisk()"/>
+      </div>
+      <div style="display:flex;align-items:center;gap:.6rem">
+        <label style="font-family:var(--mono);font-size:.6rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase">Risk Per Trade %</label>
+        <input type="number" id="riskPct" value="1" min="0.25" max="5" step="0.25"
+          style="background:var(--bg);border:1px solid var(--border2);color:var(--tbright);font-family:var(--mono);font-size:.88rem;padding:.32rem .55rem;outline:none;width:80px"
+          oninput="loadRisk()"/>
+      </div>
+      <button class="btn btn-orange" onclick="loadRisk(true)">CALCULATE</button>
+    </div>
+    <div id="riskWarning" style="display:none;background:rgba(255,68,102,.06);border:1px solid rgba(255,68,102,.25);padding:.7rem 1rem;font-family:var(--mono);font-size:.7rem;color:var(--red);margin-bottom:1rem">
+      ⚠ TOTAL RISK EXCEEDS 5% OF ACCOUNT — Consider reducing position sizes or skipping lower-grade setups
+    </div>
+    <div id="riskSummary" style="display:none;margin-bottom:1rem"></div>
+    <div id="riskContent">
+      <div class="empty"><div class="empty-title">NO DATA</div><div class="empty-sub">Run morning scan first, then enter your account size above.</div></div>
+    </div>
+  </div>
+
+  <!-- ─── PATTERN RECOGNITION TAB ──────────────────────────────────── -->
+  <div class="tab-content" id="tab-pattern">
+    <div class="section-hdr">
+      <div class="section-title" style="color:var(--yellow)">🔍 Pattern Recognition</div>
+      <div class="section-sub">Your personal edge — built from your actual EOD trade history. Needs at least 3 days of results.</div>
+    </div>
+    <div id="patternContent">
+      <div class="empty"><div class="empty-title">BUILDING YOUR EDGE</div><div class="empty-sub">Pattern recognition activates after 3+ days of EOD results.<br>The more you track, the better it gets at finding your personal edge.</div></div>
+    </div>
+  </div>
+
+  <!-- ─── WEEKLY JOURNAL TAB ───────────────────────────────────────── -->
+  <div class="tab-content" id="tab-journal">
+    <div class="section-hdr">
+      <div class="section-title" style="color:var(--purple)">📓 Weekly Journal</div>
+      <div class="section-sub">Auto-generated from your EOD history — review every Sunday to spot trends</div>
+    </div>
+    <div id="journalContent">
+      <div class="empty"><div class="empty-title">NO HISTORY YET</div><div class="empty-sub">Weekly summaries build automatically from your EOD results.<br>Check back after your first full week of tracking.</div></div>
+    </div>
+  </div>
+
   <div class="status-bar">
-    <div class="smono"><span class="sdot"></span>DAYEDGE v4 · EVENING SCAN 6PM ET · MORNING SCAN 9AM ET · CLICK ROW FOR TRADE LEVELS · 🎯 EXIT MANAGER IN 5TH TAB</div>
+    <div class="smono"><span class="sdot"></span>DAYEDGE v5 · 11 TABS · LIVE TRACKER · PRE-MARKET · RISK DASHBOARD · PATTERNS · JOURNAL</div>
     <div class="smono" id="clock">—</div>
   </div>
 </main>
@@ -1233,7 +1325,286 @@ function renderEOD(data){
   }).join('')}</div>`;
 }
 
+
+// ── SPY LIVE CONDITION ────────────────────────────────────────────────────────
+async function loadSPY(){
+  try{
+    const r = await fetch('/api/spy-condition');
+    const d = await r.json();
+    const pill = document.getElementById('spyPill');
+    const dot  = document.getElementById('spyDot');
+    const txt  = document.getElementById('spyText');
+    const cls  = d.status==='bullish'?'spy-bull':d.status==='bearish'?'spy-bear':'spy-neut';
+    pill.className = 'spy-pill ' + cls;
+    const sign = d.change_pct>=0?'+':'';
+    txt.textContent = `SPY $${d.price} ${sign}${d.change_pct}%`;
+    dot.style.background = d.status==='bullish'?'var(--green)':d.status==='bearish'?'var(--red)':'var(--yellow)';
+  }catch(e){}
+}
+setInterval(loadSPY, 60000);
+loadSPY();
+
+// ── LIVE TRACKER ──────────────────────────────────────────────────────────────
+let liveInterval = null;
+
+async function loadLive(force=false){
+  const btn = document.getElementById('liveRefreshBtn');
+  const note = document.getElementById('liveNote');
+  btn.disabled = true;
+  try{
+    const r = await fetch('/api/live-tracker');
+    const d = await r.json();
+    if(d.error){
+      document.getElementById('liveContent').innerHTML = `<div class="empty"><div class="empty-title">NO DATA</div><div class="empty-sub">${d.error}</div></div>`;
+    } else {
+      renderLive(d);
+    }
+    note.textContent = 'Updated: ' + new Date().toLocaleTimeString();
+  }catch(e){ note.textContent = 'Error: ' + e.message; }
+  btn.disabled = false;
+}
+
+function renderLive(data){
+  const el = document.getElementById('liveContent');
+  if(!data.stocks||!data.stocks.length){
+    el.innerHTML = `<div class="empty"><div class="empty-title">NO GO-LIST STOCKS</div><div class="empty-sub">Run morning scan first.</div></div>`;
+    return;
+  }
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:1rem">` +
+    data.stocks.map(s => {
+      const pnlC = s.pnl_pct>0?'var(--green)':s.pnl_pct<0?'var(--red)':'var(--tdim)';
+      const zoneLabel = s.zone==='STOPPED'?'🛑 STOPPED':s.zone==='T3'?'🏆 AT T3':s.zone==='T2'?'✅ AT T2':s.zone==='T1'?'✅ AT T1':s.zone==='ABOVE_ENTRY'?'↑ ABOVE ENTRY':'↓ BELOW ENTRY';
+      const zoneCls = (s.zone==='STOPPED')?'zone-stopped':(s.zone==='T3'||s.zone==='T2'||s.zone==='T1')?'zone-t1':s.zone==='ABOVE_ENTRY'?'zone-above':'zone-below';
+      const t1hit = s.target1 && s.day_high >= s.target1;
+      const t2hit = s.target2 && s.day_high >= s.target2;
+      return `<div class="live-card ${zoneCls}">
+        <div class="live-hdr">
+          <div style="display:flex;align-items:center;gap:7px"><span class="grade grade-${s.grade}">${s.grade}</span><span class="live-sym">${s.symbol}</span></div>
+          <span class="live-zone">${zoneLabel}</span>
+        </div>
+        <div class="live-pnl" style="color:${pnlC}">${s.pnl_pct>=0?'+':''}${s.pnl_pct}% <span style="font-size:.9rem;font-family:var(--mono)">${s.pnl_pct>=0?'+':''}$${Math.abs(s.pnl_dollar).toFixed(2)}/sh</span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.35rem;margin-bottom:.6rem">
+          ${[['Entry','var(--blue)',s.entry],['Price',pnlC,s.price],['High','var(--green)',s.day_high],['VWAP','var(--tdim)',s.vwap]].map(([l,c,v])=>`
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <span style="font-family:var(--mono);font-size:.5rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase">${l}</span>
+            <span style="font-family:var(--mono);font-size:.76rem;color:${c}">$${v}</span>
+          </div>`).join('')}
+        </div>
+        <div style="display:flex;gap:.3rem;flex-wrap:wrap;font-family:var(--mono);font-size:.56rem">
+          ${s.stop?`<span style="padding:.15rem .4rem;border:1px solid ${s.day_low<=s.stop?'rgba(255,68,102,.4)':'var(--border)'};color:${s.day_low<=s.stop?'var(--red)':'var(--tdim)'}">STOP $${s.stop}</span>`:''}
+          ${s.target1?`<span style="padding:.15rem .4rem;border:1px solid ${t1hit?'rgba(0,255,136,.4)':'var(--border)'};color:${t1hit?'var(--green)':'var(--tdim)'}">T1 $${s.target1}</span>`:''}
+          ${s.target2?`<span style="padding:.15rem .4rem;border:1px solid ${t2hit?'rgba(0,255,136,.4)':'var(--border)'};color:${t2hit?'var(--green)':'var(--tdim)'}">T2 $${s.target2}</span>`:''}
+          ${s.target3?`<span style="padding:.15rem .4rem;border:1px solid var(--border);color:var(--tdim)">T3 $${s.target3}</span>`:''}
+        </div>
+        ${s.pullback_signal?`<div style="background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.3);color:var(--green);font-family:var(--mono);font-size:.6rem;padding:.28rem .55rem;margin-top:.5rem">⚡ PULLBACK TO VWAP — POTENTIAL ENTRY ZONE</div>`:''}
+      </div>`;
+    }).join('') + '</div>';
+}
+
+// Auto-refresh live tab every 60s when it's active
+setInterval(()=>{
+  if(document.getElementById('tab-live').classList.contains('active')) loadLive();
+},60000);
+
+// ── PRE-MARKET MOMENTUM ───────────────────────────────────────────────────────
+async function loadPM(force=false){
+  const btn  = document.getElementById('pmRefreshBtn');
+  const note = document.getElementById('pmNote');
+  btn.disabled = true;
+  note.textContent = 'Fetching pre-market data...';
+  try{
+    const r = await fetch('/api/premarket-momentum');
+    const d = await r.json();
+    if(d.error){
+      document.getElementById('pmContent').innerHTML = `<div class="empty"><div class="empty-title">NO DATA</div><div class="empty-sub">${d.error}</div></div>`;
+    } else {
+      renderPM(d);
+    }
+    note.textContent = 'Updated: ' + new Date().toLocaleTimeString() + ' · Best to check 8-9:30am ET';
+  }catch(e){ note.textContent = 'Error: ' + e.message; }
+  btn.disabled = false;
+}
+
+function renderPM(data){
+  const el = document.getElementById('pmContent');
+  if(!data.stocks||!data.stocks.length){
+    el.innerHTML = `<div class="empty"><div class="empty-title">NO STOCKS</div><div class="empty-sub">Run morning scan first.</div></div>`;
+    return;
+  }
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1rem">` +
+    data.stocks.map(s => {
+      const pmC = s.pm_pct>0?'var(--green)':s.pm_pct<0?'var(--red)':'var(--tdim)';
+      const sigCls = s.entry_signal.includes('PULLBACK')?'good':s.entry_signal==='WATCH'?'watch':'wait';
+      const gq = s.gap_quality || {};
+      const gqCls = gq.color==='green'?'gq-green':gq.color==='blue'?'gq-blue':gq.color==='yellow'?'gq-yellow':gq.color==='red'?'gq-red':'gq-dim';
+      return `<div style="background:var(--panel);border:1px solid var(--border);padding:1.1rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
+          <div style="display:flex;align-items:center;gap:7px"><span class="grade grade-${s.grade}">${s.grade}</span><span style="font-family:var(--disp);font-size:1.3rem;font-weight:800;color:var(--tbright)">${s.symbol}</span></div>
+          <span style="font-family:var(--mono);font-size:.58rem;padding:.18rem .45rem;border:1px solid;${sigCls==='good'?'color:var(--green);border-color:rgba(0,255,136,.4);background:rgba(0,255,136,.08)':sigCls==='watch'?'color:var(--yellow);border-color:rgba(255,209,102,.4);background:rgba(255,209,102,.08)':'color:var(--tdim);border-color:var(--border)'}">${s.entry_signal}</span>
+        </div>
+        <div style="font-family:var(--disp);font-size:1.7rem;font-weight:800;color:${pmC};margin-bottom:.4rem">${s.pm_pct>=0?'+':''}${s.pm_pct}%</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin-bottom:.55rem">
+          ${[['PM Price',`$${s.pm_price}`,'var(--tbright)'],['PM Vol',fmtM(s.pm_vol),'var(--t)'],['Vol%',s.pm_vol_ratio+'%',s.pm_vol_ratio>10?'var(--green)':'var(--tdim)'],['Accel',s.acceleration+'x',s.acceleration>1.5?'var(--orange)':'var(--tdim)'],['Pullback',s.pullback_from_high+'%','var(--tdim)'],['Score',s.evening_score+'/10','var(--blue)']].map(([l,v,c])=>`
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <span style="font-family:var(--mono);font-size:.5rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase">${l}</span>
+            <span style="font-family:var(--mono);font-size:.76rem;color:${c}">${v}</span>
+          </div>`).join('')}
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:.35rem;font-family:var(--mono);font-size:.58rem;padding:.2rem .45rem;border:1px solid" class="${gqCls}">
+          ${gq.label||'UNKNOWN'} · ${gq.note||''}
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+}
+
+// ── RISK DASHBOARD ────────────────────────────────────────────────────────────
+async function loadRisk(force=false){
+  const account = document.getElementById('riskAccount').value || 25000;
+  const pct     = document.getElementById('riskPct').value || 1;
+  try{
+    const r = await fetch(`/api/risk-dashboard?account=${account}&risk_pct=${pct}`);
+    const d = await r.json();
+    if(d.error){
+      document.getElementById('riskContent').innerHTML = `<div class="empty"><div class="empty-title">NO DATA</div><div class="empty-sub">${d.error}</div></div>`;
+      return;
+    }
+    const s = d.summary;
+    document.getElementById('riskWarning').style.display = s.warning ? 'block' : 'none';
+    document.getElementById('riskSummary').style.display = 'block';
+    document.getElementById('riskSummary').innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1rem">
+        ${[
+          ['Total Stocks',s.total_stocks,'var(--tbright)'],
+          ['Total Exposure','$'+s.total_exposure.toLocaleString()+'  ('+s.exposure_pct+'%)','var(--blue)'],
+          ['Total Risk','$'+s.total_risk.toFixed(0)+' ('+s.total_risk_pct+'%)','var(--red)'],
+          ['Risk Per Trade',pct+'% = $'+(account*pct/100).toFixed(0),'var(--orange)']
+        ].map(([l,v,c])=>`
+        <div style="background:var(--panel);border:1px solid var(--border);padding:.9rem 1.1rem">
+          <div style="font-family:var(--mono);font-size:.58rem;color:var(--tdim);letter-spacing:.15em;text-transform:uppercase;margin-bottom:.25rem">${l}</div>
+          <div style="font-family:var(--disp);font-size:1.4rem;font-weight:800;color:${c}">${v}</div>
+        </div>`).join('')}
+      </div>`;
+    const el = document.getElementById('riskContent');
+    el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem">` +
+      d.stocks.map(s => `
+      <div style="background:var(--panel);border:1px solid var(--border);padding:1rem">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:.5rem"><span class="grade grade-${s.grade}">${s.grade}</span><span style="font-family:var(--disp);font-size:1.3rem;font-weight:800;color:var(--tbright)">${s.symbol}</span></div>
+        <div style="font-family:var(--disp);font-size:1.6rem;font-weight:800;color:var(--orange);margin-bottom:.25rem">${s.shares_suggested} shares</div>
+        <div style="font-family:var(--mono);font-size:.65rem;color:var(--tdim);margin-bottom:.6rem">$${s.position_value.toLocaleString()} position (${s.position_pct}% of account)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem">
+          ${[['Entry','$'+s.entry,'var(--blue)'],['Stop','$'+s.stop,'var(--red)'],['Risk/Share','$'+s.risk_per_share,'var(--red)'],['Max Loss','$'+s.max_risk_dollar.toFixed(0),'var(--red)'],['R/R',s.rr_ratio+':1','var(--green)'],['Stop %',s.stop_pct+'%','var(--tdim)']].map(([l,v,c])=>`
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <span style="font-family:var(--mono);font-size:.52rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase">${l}</span>
+            <span style="font-family:var(--mono);font-size:.75rem;color:${c}">${v}</span>
+          </div>`).join('')}
+        </div>
+      </div>`).join('') + '</div>';
+  }catch(e){
+    document.getElementById('riskContent').innerHTML = `<div class="empty"><div class="empty-title">ERROR</div><div class="empty-sub">${e.message}</div></div>`;
+  }
+}
+
+// ── PATTERN RECOGNITION ───────────────────────────────────────────────────────
+async function loadPatterns(){
+  try{
+    const r = await fetch('/api/patterns');
+    const d = await r.json();
+    const el = document.getElementById('patternContent');
+    if(d.error){
+      el.innerHTML = `<div class="empty"><div class="empty-title">NOT ENOUGH DATA</div><div class="empty-sub">${d.error}</div></div>`;
+      return;
+    }
+    const best  = d.best  || [];
+    const worst = d.worst || [];
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+        <div style="background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.2);padding:1rem 1.3rem">
+          <div style="font-family:var(--mono);font-size:.6rem;color:var(--green);letter-spacing:.18em;text-transform:uppercase;margin-bottom:.7rem">YOUR STRONGEST EDGES</div>
+          ${best.length?best.map(p=>`
+          <div style="margin-bottom:.6rem;padding-bottom:.6rem;border-bottom:1px solid rgba(0,255,136,.1)">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.2rem">
+              <span style="font-family:var(--mono);font-size:.7rem;color:var(--tbright)">${p.label}</span>
+              <span style="font-family:var(--disp);font-size:1.2rem;font-weight:800;color:var(--green)">${p.win_rate}%</span>
+            </div>
+            <div style="font-size:.68rem;color:var(--tdim)">${p.count} trades · avg ${p.avg_pnl>=0?'+':''}${p.avg_pnl}% · ${p.insight}</div>
+          </div>`).join(''):`<div style="font-family:var(--mono);font-size:.68rem;color:var(--tdim)">Keep trading — patterns will emerge</div>`}
+        </div>
+        <div style="background:rgba(255,68,102,.05);border:1px solid rgba(255,68,102,.2);padding:1rem 1.3rem">
+          <div style="font-family:var(--mono);font-size:.6rem;color:var(--red);letter-spacing:.18em;text-transform:uppercase;margin-bottom:.7rem">SETUPS TO AVOID</div>
+          ${worst.length?worst.map(p=>`
+          <div style="margin-bottom:.6rem;padding-bottom:.6rem;border-bottom:1px solid rgba(255,68,102,.1)">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.2rem">
+              <span style="font-family:var(--mono);font-size:.7rem;color:var(--tbright)">${p.label}</span>
+              <span style="font-family:var(--disp);font-size:1.2rem;font-weight:800;color:var(--red)">${p.win_rate}%</span>
+            </div>
+            <div style="font-size:.68rem;color:var(--tdim)">${p.count} trades · avg ${p.avg_pnl>=0?'+':''}${p.avg_pnl}% · ${p.insight}</div>
+          </div>`).join(''):`<div style="font-family:var(--mono);font-size:.68rem;color:var(--tdim)">No clear losing patterns yet — good sign</div>`}
+        </div>
+      </div>
+      <div style="font-family:var(--mono);font-size:.6rem;color:var(--tdim);letter-spacing:.18em;text-transform:uppercase;margin-bottom:.8rem">ALL PATTERNS (${d.total_trades} trades across ${d.days_tracked} days)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.75rem">
+        ${(d.patterns||[]).map(p=>{
+          const c = p.win_rate>=60?'var(--green)':p.win_rate<=40?'var(--red)':'var(--yellow)';
+          const fillPct = p.win_rate;
+          return `<div style="background:var(--panel);border:1px solid var(--border);padding:.9rem">
+            <div style="font-family:var(--mono);font-size:.58rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.35rem">${p.label}</div>
+            <div style="font-family:var(--disp);font-size:1.7rem;font-weight:800;color:${c};margin-bottom:.2rem">${p.win_rate}%</div>
+            <div style="height:2px;background:var(--border);margin-bottom:.4rem;overflow:hidden"><div style="height:100%;width:${fillPct}%;background:${c}"></div></div>
+            <div style="font-family:var(--mono);font-size:.62rem;color:var(--tdim);margin-bottom:.35rem">${p.count} trades · avg ${p.avg_pnl>=0?'+':''}${p.avg_pnl}%</div>
+            <div style="font-size:.68rem;color:var(--tdim);line-height:1.4;border-left:2px solid var(--border2);padding-left:.5rem">${p.insight}</div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }catch(e){
+    document.getElementById('patternContent').innerHTML = `<div class="empty"><div class="empty-title">ERROR</div><div class="empty-sub">${e.message}</div></div>`;
+  }
+}
+
+// ── WEEKLY JOURNAL ────────────────────────────────────────────────────────────
+async function loadJournal(){
+  try{
+    const r = await fetch('/api/weekly-journal');
+    const d = await r.json();
+    const el = document.getElementById('journalContent');
+    if(d.error||!d.weeks||!d.weeks.length){
+      el.innerHTML = `<div class="empty"><div class="empty-title">NO HISTORY YET</div><div class="empty-sub">${d.error||'Keep tracking EOD results — weekly summaries build automatically.'}</div></div>`;
+      return;
+    }
+    el.innerHTML = `<div style="display:flex;flex-direction:column;gap:1rem">` +
+      d.weeks.map(w => {
+        const wrC = w.win_rate>=60?'var(--green)':w.win_rate>=50?'var(--yellow)':'var(--red)';
+        const pnlC = w.total_pnl>=0?'var(--green)':'var(--red)';
+        return `<div style="background:var(--panel);border:1px solid var(--border);padding:1.2rem 1.5rem">
+          <div style="display:flex;align-items:center;gap:1.2rem;margin-bottom:.9rem;flex-wrap:wrap">
+            <span class="grade grade-${w.grade}" style="width:28px;height:28px;font-size:.85rem">${w.grade}</span>
+            <div>
+              <div style="font-family:var(--mono);font-size:.58rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase">WEEK OF</div>
+              <div style="font-family:var(--disp);font-size:1.2rem;font-weight:800;color:var(--tbright)">${w.week_start} → ${w.week_end}</div>
+            </div>
+            <div style="font-family:var(--disp);font-size:2rem;font-weight:800;color:${wrC};margin-left:auto">${w.win_rate}% <span style="font-size:1rem;font-family:var(--mono)">WIN RATE</span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:.8rem;margin-bottom:.9rem">
+            ${[['Days',w.days_traded,'var(--tbright)'],['Trades',w.total_trades,'var(--tbright)'],['Wins',w.wins,'var(--green)'],['Losses',w.losses,'var(--red)'],['Avg P&L',(w.avg_pnl>=0?'+':'')+w.avg_pnl+'%',wrC],['Total P&L',(w.total_pnl>=0?'+':'')+w.total_pnl+'%',pnlC]].map(([l,v,c])=>`
+            <div>
+              <div style="font-family:var(--mono);font-size:.55rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.2rem">${l}</div>
+              <div style="font-family:var(--disp);font-size:1.3rem;font-weight:800;color:${c}">${v}</div>
+            </div>`).join('')}
+          </div>
+          <div style="display:flex;gap:1.5rem;flex-wrap:wrap;padding-top:.7rem;border-top:1px solid var(--border);font-family:var(--mono);font-size:.65rem">
+            <span>🏆 Best: <span style="color:var(--green)">${w.best_trade.symbol} +${w.best_trade.pnl}%</span></span>
+            <span>💔 Worst: <span style="color:var(--red)">${w.worst_trade.symbol} ${w.worst_trade.pnl}%</span></span>
+            ${w.top_sectors.map(s=>`<span>📊 ${s.sector}: ${s.count} trades</span>`).join('')}
+            ${Object.entries(w.by_grade||{}).map(([g,d])=>`<span>Grade ${g}: ${d.win_rate}% (${d.count})</span>`).join('')}
+          </div>
+        </div>`;
+      }).join('') + '</div>';
+  }catch(e){
+    document.getElementById('journalContent').innerHTML = `<div class="empty"><div class="empty-title">ERROR</div><div class="empty-sub">${e.message}</div></div>`;
+  }
+}
+
 // ── BOOT ──────────────────────────────────────────────────────────────────────
+
 loadAll();
 setInterval(loadAll,60000);
 </script>
