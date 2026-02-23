@@ -24,6 +24,13 @@ header{background:var(--panel);border-bottom:1px solid var(--border2);padding:0 
 .logo-icon::before{content:'▲';color:var(--green);font-size:14px}
 .logo-text{font-family:var(--disp);font-size:1.6rem;font-weight:800;color:var(--tbright);letter-spacing:.05em}
 .logo-text span{color:var(--green)}
+.user-pill{display:flex;align-items:center;gap:.6rem;font-family:var(--mono);font-size:.65rem;color:var(--tdim);background:var(--panel2);border:1px solid var(--border);padding:.3rem .7rem}
+.user-pill .role-badge{font-size:.55rem;padding:.12rem .4rem;border:1px solid;letter-spacing:.08em;text-transform:uppercase}
+.role-admin{color:var(--green);border-color:rgba(0,255,136,.4);background:rgba(0,255,136,.08)}
+.role-user{color:var(--blue);border-color:rgba(79,195,247,.4);background:rgba(79,195,247,.08)}
+.btn-logout{border-color:var(--red)!important;color:var(--red)!important}
+.btn-logout:hover{background:rgba(255,68,102,.08)!important}
+.tab-locked{opacity:.3;cursor:not-allowed!important;pointer-events:none}
 .hdr-right{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
 .mkt-badge{font-family:var(--mono);font-size:.7rem;padding:.3rem .8rem;letter-spacing:.1em;text-transform:uppercase;border:1px solid}
 .bullish{color:var(--green);border-color:var(--green);background:rgba(0,255,136,.08)}
@@ -377,6 +384,11 @@ td{padding:.85rem 1rem;vertical-align:middle}
     <span id="spyText">SPY —</span>
   </div>
   <div class="hdr-right">
+    <div class="user-pill" id="userPill" style="display:none">
+      <span id="userPillName"></span>
+      <span class="role-badge" id="userPillRole"></span>
+    </div>
+    <button class="btn btn-logout" onclick="doLogout()" style="display:none" id="logoutBtn">⏻ LOGOUT</button>
     <div class="mkt-badge neutral" id="mktBadge">MARKET: —</div>
     <div class="window-badge" id="windowBadge">⏱ —</div>
     <button class="btn btn-blue" onclick="runMorning()">☀ MORNING SCAN</button>
@@ -1693,8 +1705,97 @@ async function saveEODHistory(){
   btn.textContent = '💾 SAVE TO HISTORY';
 }
 
+// ── AUTH ─────────────────────────────────────────────────────────────────────
+let currentRole = null;
+
+const TAB_ROLES = {
+  'evening':  'user',
+  'morning':  'user',
+  'sectors':  'user',
+  'backtest': 'user',
+  'exit':     'user',
+  'live':     'user',
+  'pm':       'user',
+  'risk':     'user',
+  'eod':      'admin',
+  'pattern':  'admin',
+  'journal':  'admin',
+};
+
+async function checkAuth(){
+  try{
+    const r = await fetch('/api/me');
+    if(r.status === 401){
+      window.location.href = '/login';
+      return;
+    }
+    const d = await r.json();
+    if(!d.authenticated){
+      window.location.href = '/login';
+      return;
+    }
+    currentRole = d.role;
+    applyRoleAccess(d.role, d.username);
+  }catch(e){
+    window.location.href = '/login';
+  }
+}
+
+function applyRoleAccess(role, username){
+  // Show user pill
+  const pill = document.getElementById('userPill');
+  const pillName = document.getElementById('userPillName');
+  const pillRole = document.getElementById('userPillRole');
+  const logoutBtn = document.getElementById('logoutBtn');
+  pill.style.display = 'flex';
+  logoutBtn.style.display = 'inline-block';
+  pillName.textContent = username;
+  pillRole.textContent = role;
+  pillRole.className = 'role-badge ' + (role === 'admin' ? 'role-admin' : 'role-user');
+
+  // Lock tabs that this role cannot access
+  if(role !== 'admin'){
+    document.querySelectorAll('.tab').forEach(tab => {
+      const onclick = tab.getAttribute('onclick') || '';
+      // Extract tab name from onclick e.g. switchTab('eod',this)
+      const match = onclick.match(/switchTab\('([^']+)'/);
+      if(match){
+        const tabName = match[1];
+        if(TAB_ROLES[tabName] === 'admin'){
+          tab.classList.add('tab-locked');
+          tab.title = 'Admin access required';
+          tab.setAttribute('onclick','');
+          tab.innerHTML = '🔒 ' + tab.textContent.trim();
+        }
+      }
+    });
+  }
+}
+
+async function doLogout(){
+  try{
+    await fetch('/api/logout', {method:'POST'});
+  }catch(e){}
+  window.location.href = '/login';
+}
+
+// intercept 401s from any API call — redirect to login
+const origFetch = window.fetch;
+window.fetch = async function(...args){
+  const r = await origFetch(...args);
+  if(r.status === 401){
+    const clone = r.clone();
+    try{
+      const d = await clone.json();
+      if(d.redirect === '/login') window.location.href = '/login';
+    }catch(e){}
+  }
+  return r;
+};
+
 // ── BOOT ──────────────────────────────────────────────────────────────────────
 
+checkAuth();
 loadAll();
 setInterval(loadAll,60000);
 </script>
