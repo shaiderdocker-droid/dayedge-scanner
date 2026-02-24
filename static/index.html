@@ -391,7 +391,9 @@ td{padding:.85rem 1rem;vertical-align:middle}
     <button class="btn btn-logout" onclick="doLogout()" style="display:none" id="logoutBtn">⏻ LOGOUT</button>
     <div class="mkt-badge neutral" id="mktBadge">MARKET: —</div>
     <div class="window-badge" id="windowBadge">⏱ —</div>
+    <span id="syncSheetsNote" style="display:none;font-family:var(--mono);font-size:.6rem"></span>
     <button class="btn btn-blue" onclick="runMorning()">☀ MORNING SCAN</button>
+    <button class="btn" id="syncSheetsBtn" onclick="syncToSheets()" style="border-color:#0f9d58;color:#0f9d58;display:none" title="Push morning go-list to Google Sheets">📊 SYNC SHEETS</button>
     <button class="btn btn-purple" onclick="runBacktest()">📊 BACKTEST</button>
     <button class="btn btn-green" id="scanBtn" onclick="runScan()">▶ EVENING SCAN</button>
   </div>
@@ -1799,11 +1801,70 @@ window.fetch = async function(...args){
   return r;
 };
 
+// ── GOOGLE SHEETS ────────────────────────────────────────────────────────────
+
+async function checkSheetsStatus(){
+  // Only show sync button for admin
+  if(currentRole !== 'admin') return;
+  try{
+    const r = await fetch('/api/sheet-status');
+    const d = await r.json();
+    const btn  = document.getElementById('syncSheetsBtn');
+    const note = document.getElementById('syncSheetsNote');
+    if(btn){
+      btn.style.display = 'inline-block';
+      if(d.configured){
+        btn.title = d.sheet_url ? `Syncs to: ${d.sheet_url}` : 'Google Sheets configured';
+      } else {
+        btn.style.borderColor = 'var(--tdim)';
+        btn.style.color = 'var(--tdim)';
+        btn.title = 'Google Sheets not configured — see setup instructions';
+      }
+    }
+    if(note && d.sheet_url){
+      note.style.display = 'inline';
+      note.innerHTML = `<a href="${d.sheet_url}" target="_blank" style="color:#0f9d58;text-decoration:none">📋 Open Sheet ↗</a>`;
+    }
+  }catch(e){}
+}
+
+async function syncToSheets(){
+  const btn  = document.getElementById('syncSheetsBtn');
+  const note = document.getElementById('syncSheetsNote');
+  btn.disabled = true;
+  btn.textContent = '⏳ SYNCING...';
+  try{
+    const r = await fetch('/api/sync-sheets', {method:'POST'});
+    const d = await r.json();
+    if(d.ok){
+      toast(`✅ Synced ${d.added} rows to Google Sheets (${d.skipped} duplicates skipped)`);
+      btn.textContent = '✅ SYNCED';
+      if(note && d.sheet_url){
+        note.style.display = 'inline';
+        note.innerHTML = `<a href="${d.sheet_url}" target="_blank" style="color:#0f9d58;text-decoration:none">📋 Open Sheet ↗</a>`;
+      }
+      setTimeout(()=>{
+        btn.disabled = false;
+        btn.innerHTML = '<span style="margin-right:.3rem">📊</span> SYNC TO SHEETS';
+      }, 3000);
+    } else {
+      toast('⚠ ' + (d.error || 'Sync failed'), true);
+      btn.disabled = false;
+      btn.innerHTML = '<span style="margin-right:.3rem">📊</span> SYNC TO SHEETS';
+    }
+  }catch(e){
+    toast('Sync error: ' + e.message, true);
+    btn.disabled = false;
+    btn.innerHTML = '<span style="margin-right:.3rem">📊</span> SYNC TO SHEETS';
+  }
+}
+
 // ── BOOT ──────────────────────────────────────────────────────────────────────
 
 checkAuth();
 loadAll();
 setInterval(loadAll,60000);
+setTimeout(checkSheetsStatus, 1500);
 </script>
 </body>
 </html>
