@@ -1,5 +1,6 @@
 """
-DayEdge Scanner v4.0 - All 10 Improvements Added:
+DayEdge Scanner v4.1 - 488 Stock Watchlist
+All 10 Improvements:
 1. First-15-min volume confirmation
 2. VWAP + key MA institutional levels
 3. Earnings reaction history tracking
@@ -43,6 +44,8 @@ DEFAULT_WATCHLIST = [
     # --- Semiconductors ---
     "AVGO", "MU", "SMCI", "ARM", "MRVL", "INTC", "QCOM", "AMAT",
     "LRCX", "KLAC", "MPWR", "ONTO", "CRUS", "SWKS", "WOLF", "AMBA",
+    "NXPI", "ADI", "MCHP", "ON", "STX", "WDC", "ASML", "TSM",
+    "NVMI", "ACLS", "FORM", "UCTT", "MKSI", "CAMT", "RMBS", "SITM",
 
     # --- Software / Cloud ---
     "PLTR", "CRM", "SNOW", "DDOG", "NET", "CRWD", "NOW", "ZS",
@@ -50,14 +53,21 @@ DEFAULT_WATCHLIST = [
     "HUBS", "TEAM", "CFLT", "ESTC", "RPD", "TENB", "FORG", "VEEV",
     "DOCU", "DOCN", "APPN", "MNDY", "WIX", "SMAR", "PCTY", "PAYC",
     "COUP", "AZPN", "ANGI", "BOX", "SPSC",
+    "ADBE", "ORCL", "INTU", "WDAY", "ADSK", "ANSS", "CDNS", "PTC",
+    "MANH", "PEGA", "NCNO", "FRSH", "BRZE", "JAMF", "TOST", "EVCM",
+
+    # --- Cybersecurity ---
+    "FTNT", "PANW", "CYBR", "CHKP", "AKAM", "GLOB", "EPAM",
 
     # --- AI / Quantum Computing ---
     "IONQ", "QUBT", "RGTI", "QBTS", "SOUN", "BBAI", "ARQQ",
-    "LAES", "AIXI", "GFAI", "PRCT",
+    "LAES", "AIXI", "GFAI", "PRCT", "GENI",
 
-    # --- Fintech ---
+    # --- Fintech / Payments ---
     "COIN", "HOOD", "PYPL", "AFRM", "UPST", "SOFI", "MQ", "FOUR",
     "GPN", "FIS", "FLYW", "LC", "OPEN", "RELY", "DAVE", "PAYO",
+    "V", "MA", "AXP", "SQ", "FISV", "WU", "DLO", "STNE", "XP",
+    "RPAY", "UWMC", "COOP", "NUVEI",
 
     # --- Consumer Tech / Social ---
     "SHOP", "SPOT", "RBLX", "SNAP", "PINS", "UBER", "LYFT", "ABNB",
@@ -67,7 +77,8 @@ DEFAULT_WATCHLIST = [
     # --- EV / Clean Energy ---
     "RIVN", "LCID", "NIO", "XPEV", "LI", "CHPT", "PLUG", "ENPH",
     "SEDG", "ARRY", "NOVA", "RUN", "BLNK", "EVGO", "BE", "FCEL",
-    "SPWR", "STEM", "NKLA",
+    "SPWR", "STEM", "NKLA", "FSLR", "MAXN", "CSIQ", "DAQO", "SHLS",
+    "FLUX", "PTRA",
 
     # --- Crypto Related ---
     "MSTR", "MARA", "RIOT", "CLSK", "CIFR", "HUT", "WULF", "IREN",
@@ -75,31 +86,56 @@ DEFAULT_WATCHLIST = [
 
     # --- China ADRs ---
     "BABA", "JD", "PDD", "BIDU", "FUTU", "TIGR", "NTES", "EDU", "TAL",
+    "NIU", "VNET", "TUYA",
 
-    # --- Biotech / Pharma ---
+    # --- Biotech / Pharma (Speculative) ---
     "MRNA", "BNTX", "CRSP", "BEAM", "PACB", "ILMN", "HIMS", "TDOC",
     "NVAX", "ALNY", "IONS", "FATE", "EDIT", "NTLA", "INCY", "EXAS",
     "NTRA", "ACCD", "GDRX", "BMRN", "SGEN", "RXRX", "VERV", "TWST",
     "ALLO", "RCKT", "IMVT", "KYMR", "ARWR", "VRTX", "REGN", "BIIB", "GILD",
+    "ACAD", "FOLD", "ARDX", "PTGX", "PRAX", "NKTR", "IGMS", "KRTX",
+    "TARS", "APLS", "DNLI", "ROIV", "IMCR", "KRYS", "RARE", "VKTX",
+    "RYTM", "ACLX", "CGEM", "SNDX",
+
+    # --- Biotech / Pharma (Large Cap) ---
+    "ABBV", "LLY", "PFE", "JNJ", "BMY", "MRK", "AZN",
 
     # --- Defense / Space ---
     "BA", "RKLB", "ASTS", "LUNR", "MNTS", "LMT", "RTX", "NOC", "GD", "KTOS",
+    "HII", "TDG", "LDOS", "SAIC", "BAH", "CACI", "HEICO", "TDY", "SPR",
 
-    # --- Banks / Finance ---
+    # --- Banks / Large Cap ---
     "JPM", "BAC", "GS", "MS", "SCHW", "IBKR", "C", "WFC", "BLK",
+
+    # --- Banks / Regional ---
+    "USB", "PNC", "TFC", "COF", "KEY", "RF", "ZION", "CFG", "HBAN", "MTB",
 
     # --- Retail / Consumer ---
     "WMT", "TGT", "COST", "ETSY", "W", "CHWY", "CVNA", "KSS",
     "M", "JWN", "GPS", "ONON", "BIRK", "ELF", "CELH", "LULU", "NKE", "UAA",
+    "HD", "LOW", "BBY", "DKS", "FIVE", "OLLI", "BJ", "SFM", "ULTA",
+    "BOOT", "CROX", "DECK", "SKX", "WING", "CAVA",
 
-    # --- Healthcare ---
+    # --- Restaurants / Food ---
+    "MCD", "SBUX", "CMG", "YUM", "QSR", "WEN", "JACK", "TXRH",
+    "DINE", "EAT", "DRI", "BLMN", "SHAK", "CAKE", "PLAY",
+
+    # --- Healthcare Devices ---
+    "TMO", "DHR", "MDT", "BSX", "EW", "ISRG", "DXCM", "PODD",
+    "IRTC", "NVCR", "SWAV", "INMD", "SILK", "MMSI", "LMAT", "ATRC",
+
+    # --- Healthcare Insurance ---
     "UNH", "CVS", "CI", "HUM", "CNC", "MOH", "DOCS", "WELL",
 
-    # --- Energy ---
+    # --- Energy (Oil & Gas) ---
     "XOM", "CVX", "OXY", "DVN", "HAL", "SLB", "MRO", "FANG", "COP", "BKR",
+
+    # --- Energy (Utilities) ---
+    "NEE", "AES", "ETR", "EXC", "PCG", "SRE", "SO",
 
     # --- Commodities / Mining ---
     "FCX", "NEM", "GOLD", "AG", "WPM", "PAAS", "EXK", "HL",
+    "AA", "CLF", "X", "NUE", "STLD", "RS",
 
     # --- Airlines / Travel ---
     "DAL", "UAL", "AAL", "LUV", "EXPE", "BKNG", "MAR",
@@ -107,14 +143,24 @@ DEFAULT_WATCHLIST = [
     # --- Media / Streaming ---
     "DIS", "WBD", "PARA", "FUBO",
 
+    # --- Industrials ---
+    "CAT", "DE", "EMR", "HON", "MMM", "GE", "ETN", "ROK", "ITW",
+    "CARR", "OTIS", "XYL", "ROP", "VRSK", "CPRT", "GNRC", "ODFL", "SAIA",
+
     # --- Meme / High Volatility ---
     "GME", "AMC", "SPCE", "CLOV", "WKHS",
+    "TLRY", "SNDL", "ACB", "CRON",
 
-    # --- ETF Proxies (high vol) ---
+    # --- ETF Proxies (leveraged / sector) ---
     "ARKK", "SOXL", "TQQQ", "UVXY", "LABD",
+    "SQQQ", "TNA", "TZA", "SPXU", "UPRO", "TECL", "TECS", "FNGU", "FNGD",
 
     # --- REITs / Infrastructure ---
     "AMT", "CCI", "EQIX", "DLR", "VICI",
+    "O", "PLD", "SPG", "EQR", "AVB", "ESS", "MAA", "OHI", "SBRA",
+
+    # --- Legacy Tech / Enterprise ---
+    "IBM", "SAP", "ACN", "TXN", "HPQ", "DELL", "WEX", "GDDY",
 
     # --- Misc High Growth ---
     "ZI", "TTD", "MGNI", "PUBM", "LMND", "ROOT", "JOBY", "ACHR",
@@ -124,15 +170,16 @@ DEFAULT_WATCHLIST = [
 seen = set()
 DEFAULT_WATCHLIST = [x for x in DEFAULT_WATCHLIST if not (x in seen or seen.add(x))]
 
+
 SECTOR_ETFS = {
-    "XLK": ["AAPL","MSFT","NVDA","AMD","GOOGL","META","CRM","TWLO","DDOG","NET","CRWD","OKTA","SNOW","SHOP","INTC","QCOM","AVGO","NOW","ZS","PLTR","AI","ARM","SMCI","AMAT","HUBS","TEAM","MDB","BILL","DOCU","PAYC"],
-    "XLF": ["COIN","HOOD","PYPL","AFRM","UPST","SOFI","MQ","FOUR","GPN","FIS","JPM","BAC","GS","MS","SCHW","IBKR","C","WFC","BLK"],
-    "XLY": ["AMZN","TSLA","ABNB","DASH","UBER","LYFT","RBLX","SHOP","ETSY","W","CHWY","CVNA","BMBL","MTCH","DKNG","PENN","MELI","SE","ONON","CELH","LULU","NKE"],
+    "XLK": ["AAPL","MSFT","NVDA","AMD","GOOGL","META","CRM","TWLO","DDOG","NET","CRWD","OKTA","SNOW","SHOP","INTC","QCOM","AVGO","NOW","ZS","PLTR","AI","ARM","SMCI","AMAT","HUBS","TEAM","MDB","BILL","DOCU","PAYC","ADBE","ORCL","INTU","WDAY","PANW","FTNT","CYBR"],
+    "XLF": ["COIN","HOOD","PYPL","AFRM","UPST","SOFI","MQ","FOUR","GPN","FIS","JPM","BAC","GS","MS","SCHW","IBKR","C","WFC","BLK","V","MA","AXP","SQ","FISV","USB","PNC","TFC","COF"],
+    "XLY": ["AMZN","TSLA","ABNB","DASH","UBER","LYFT","RBLX","SHOP","ETSY","W","CHWY","CVNA","BMBL","MTCH","DKNG","PENN","MELI","SE","ONON","CELH","LULU","NKE","HD","LOW","MCD","SBUX","CMG","CAVA","WING"],
     "XLC": ["GOOGL","META","NFLX","SNAP","SPOT","ROKU","ZM","PINS","DIS","WBD","PARA","DUOL","APP"],
-    "XME": ["MARA","RIOT","CLSK","CIFR","HUT","WULF","IREN","BTBT","CORZ","FCX","NEM","GOLD","AG","WPM","PAAS"],
-    "XBI": ["MRNA","BNTX","CRSP","BEAM","NVAX","ALNY","IONS","HIMS","TDOC","ILMN","PACB","INCY","EXAS","NTRA","GDRX","BMRN","SGEN","RXRX","VRTX","REGN","BIIB","GILD"],
-    "XLI": ["RIVN","LCID","NIO","XPEV","LI","CHPT","PLUG","ENPH","BLNK","EVGO","BE","RKLB","ASTS","LUNR","BA","LMT","RTX","NOC","HAL","SLB","JOBY","ACHR"],
-    "XLE": ["XOM","CVX","OXY","DVN","SLB","HAL","MRO","FANG","COP","BKR"],
+    "XME": ["MARA","RIOT","CLSK","CIFR","HUT","WULF","IREN","BTBT","CORZ","FCX","NEM","GOLD","AG","WPM","PAAS","AA","CLF","NUE","STLD"],
+    "XBI": ["MRNA","BNTX","CRSP","BEAM","NVAX","ALNY","IONS","HIMS","TDOC","ILMN","PACB","INCY","EXAS","NTRA","GDRX","BMRN","SGEN","RXRX","VRTX","REGN","BIIB","GILD","ABBV","LLY","PFE","MRK","ACAD","APLS","KRTX","VKTX"],
+    "XLI": ["RIVN","LCID","NIO","XPEV","LI","CHPT","PLUG","ENPH","BLNK","EVGO","BE","RKLB","ASTS","LUNR","BA","LMT","RTX","NOC","HAL","SLB","JOBY","ACHR","CAT","DE","GE","HON","ODFL","SAIA"],
+    "XLE": ["XOM","CVX","OXY","DVN","SLB","HAL","MRO","FANG","COP","BKR","NEE","FSLR","ENPH"],
 }
 
 # ─── UTILITY ──────────────────────────────────────────────────────────────────
@@ -179,7 +226,6 @@ def save_json(fp, data):
 # ─── IMPROVEMENT 1: FIRST-15-MIN VOLUME CONFIRMATION ─────────────────────────
 
 def get_first_15min_rvol(ticker_obj):
-    """Compare today's first 15min volume to historical average first 15min volume."""
     try:
         df = ticker_obj.history(period="30d", interval="15m", prepost=False)
         if df is None or len(df) < 10: return 1.0, 0
@@ -187,7 +233,6 @@ def get_first_15min_rvol(ticker_obj):
         today_bars = df[df.index.date == today]
         if today_bars.empty: return 1.0, 0
         first_bar_vol = int(today_bars.iloc[0]['Volume'])
-        # Get historical first bars (first bar of each day)
         hist_first_vols = []
         for date in df.index.date:
             if date == today: continue
@@ -203,7 +248,6 @@ def get_first_15min_rvol(ticker_obj):
 # ─── IMPROVEMENT 2: VWAP + KEY MA INSTITUTIONAL LEVELS ───────────────────────
 
 def get_institutional_levels(df):
-    """Check if price is above VWAP, 20MA, 50MA, 200MA."""
     try:
         if len(df) < 5: return {}, 0
         last = float(df['Close'].iloc[-1])
@@ -211,7 +255,6 @@ def get_institutional_levels(df):
         ma20 = float(df['Close'].tail(20).mean()) if len(df) >= 20 else None
         ma50 = float(df['Close'].tail(50).mean()) if len(df) >= 50 else None
         ma200 = float(df['Close'].tail(200).mean()) if len(df) >= 200 else None
-        # VWAP (daily)
         try:
             typical = (df['High'] + df['Low'] + df['Close']) / 3
             vwap = float((typical * df['Volume']).sum() / df['Volume'].sum())
@@ -224,7 +267,6 @@ def get_institutional_levels(df):
         result['above_ma20'] = bool(last > ma20) if ma20 else False
         result['above_ma50'] = bool(last > ma50) if ma50 else False
         result['above_ma200'] = bool(last > ma200) if ma200 else False
-        # Score: +1 for each key level above
         score = sum([result['above_vwap'], result['above_ma20'], result['above_ma50'], result['above_ma200']])
         return result, int(score)
     except: return {}, 0
@@ -232,7 +274,6 @@ def get_institutional_levels(df):
 # ─── IMPROVEMENT 3: EARNINGS REACTION HISTORY ────────────────────────────────
 
 def get_earnings_reaction_history(symbol, ticker_obj):
-    """Track how this stock historically reacts to earnings — big gapper or not."""
     history = load_json(EARNINGS_HISTORY_FILE, {})
     if symbol in history and len(history[symbol].get("reactions", [])) >= 3:
         reactions = history[symbol]["reactions"]
@@ -249,25 +290,23 @@ def get_earnings_reaction_history(symbol, ticker_obj):
     return {"avg_move_pct": 0, "bullish_pct": 50, "samples": 0, "is_reliable_gapper": False}
 
 def update_earnings_history(symbol, reaction_pct):
-    """Record actual earnings reaction for future reference."""
     history = load_json(EARNINGS_HISTORY_FILE, {})
     if symbol not in history:
         history[symbol] = {"reactions": [], "updated": datetime.now().isoformat()}
     history[symbol]["reactions"].append(round(reaction_pct, 2))
-    history[symbol]["reactions"] = history[symbol]["reactions"][-12:]  # keep last 12 quarters
+    history[symbol]["reactions"] = history[symbol]["reactions"][-12:]
     history[symbol]["updated"] = datetime.now().isoformat()
     save_json(EARNINGS_HISTORY_FILE, history)
 
 # ─── IMPROVEMENT 4: SHORT INTEREST SQUEEZE DETECTOR ──────────────────────────
 
 def get_short_squeeze_score(ticker_obj):
-    """High short interest + gap up = potential squeeze. Returns score and data."""
     try:
         info = ticker_obj.info
         short_float = info.get('shortPercentOfFloat', 0) or 0
-        short_ratio = info.get('shortRatio', 0) or 0  # days to cover
+        short_ratio = info.get('shortRatio', 0) or 0
         if isinstance(short_float, float) and short_float < 1:
-            short_float = short_float * 100  # convert 0.15 → 15%
+            short_float = short_float * 100
         squeeze_score = 0
         if short_float > 20: squeeze_score += 2
         elif short_float > 10: squeeze_score += 1
@@ -278,18 +317,15 @@ def get_short_squeeze_score(ticker_obj):
 # ─── IMPROVEMENT 5: SECTOR LEADER WEIGHTING ──────────────────────────────────
 
 def get_sector_leader_score(symbol, rotation, df, spy_df):
-    """Check if this stock is the strongest in its sector (sector leader gets bonus)."""
     try:
         for etf, stocks in SECTOR_ETFS.items():
             if symbol not in stocks: continue
             momentum = rotation.get(etf, {}).get("momentum", "neutral")
             if momentum != "hot": return 0, False
-            # Check if this stock is outperforming its sector peers
             if spy_df is None or len(df) < 5: return 0, False
             sym_5d = ((df['Close'].iloc[-1] - df['Close'].iloc[-5]) / df['Close'].iloc[-5]) * 100
-            # Compare to SPY 5d return as sector proxy
             spy_5d = ((spy_df['Close'].iloc[-1] - spy_df['Close'].iloc[-5]) / spy_df['Close'].iloc[-5]) * 100
-            if sym_5d > spy_5d * 1.5:  # 50% stronger than market
+            if sym_5d > spy_5d * 1.5:
                 return 2, True
             elif sym_5d > spy_5d:
                 return 1, False
@@ -299,7 +335,6 @@ def get_sector_leader_score(symbol, rotation, df, spy_df):
 # ─── IMPROVEMENT 6: PRE-MARKET VOLUME ────────────────────────────────────────
 
 def get_premarket_volume(ticker_obj):
-    """Get pre-market volume and compare to average daily volume."""
     try:
         df = ticker_obj.history(period="5d", interval="1h", prepost=True)
         if df is None or len(df) < 2: return 0, 0.0
@@ -307,7 +342,6 @@ def get_premarket_volume(ticker_obj):
         pm_bars = df[(df.index.date == today) & (df.index.hour < 9)]
         if pm_bars.empty: return 0, 0.0
         pm_vol = int(pm_bars['Volume'].sum())
-        # Average daily volume for context
         info_vol = ticker_obj.info.get('averageVolume', 0) or 0
         if info_vol == 0: return pm_vol, 0.0
         pm_vol_pct = round((pm_vol / info_vol) * 100, 1)
@@ -342,7 +376,6 @@ BEARISH_KEYWORDS = [
 ]
 
 def get_news_sentiment(symbol):
-    """Score news sentiment from positive/negative keywords."""
     if not NEWS_API_KEY: return False, 0, []
     try:
         r = requests.get(
@@ -367,38 +400,29 @@ def get_news_sentiment(symbol):
 # ─── IMPROVEMENT 8: GAP NORMALIZED TO ATR ────────────────────────────────────
 
 def get_gap_atr_ratio(df):
-    """A 3% gap on a 1% ATR stock is huge. Normalize gap vs ATR."""
     try:
         gap = calculate_gap_percent(df)
         atr_pct = calculate_atr_percent(df)
         if atr_pct == 0: return 0.0
-        ratio = gap / atr_pct
-        return round(float(ratio), 2)
+        return round(float(gap / atr_pct), 2)
     except: return 0.0
 
 # ─── IMPROVEMENT 9: PERSONAL TRADE LOGGING ───────────────────────────────────
 
 def log_trade(symbol, action, entry_price, notes=""):
-    """Log a trade taken by the user for ML training and performance tracking."""
     trades = load_json(TRADE_LOG_FILE, [])
     trade = {
         "id": f"{symbol}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-        "symbol": symbol,
-        "action": action,  # "buy" or "sell"
-        "price": entry_price,
-        "notes": notes,
-        "timestamp": datetime.now().isoformat(),
-        "exit_price": None,
-        "pnl_pct": None,
-        "outcome": None
+        "symbol": symbol, "action": action, "price": entry_price,
+        "notes": notes, "timestamp": datetime.now().isoformat(),
+        "exit_price": None, "pnl_pct": None, "outcome": None
     }
     trades.append(trade)
-    trades = trades[-500:]  # keep last 500 trades
+    trades = trades[-500:]
     save_json(TRADE_LOG_FILE, trades)
     return trade
 
 def update_trade_outcome(trade_id, exit_price):
-    """Update a trade with exit price and outcome."""
     trades = load_json(TRADE_LOG_FILE, [])
     for t in trades:
         if t["id"] == trade_id and t["exit_price"] is None:
@@ -410,16 +434,13 @@ def update_trade_outcome(trade_id, exit_price):
     save_json(TRADE_LOG_FILE, trades)
 
 def get_personal_stats():
-    """Calculate stats from personal trade log."""
     trades = load_json(TRADE_LOG_FILE, [])
     closed = [t for t in trades if t.get("outcome")]
     if not closed: return None
     wins = [t for t in closed if t["outcome"] == "win"]
     losses = [t for t in closed if t["outcome"] == "loss"]
     return {
-        "total_trades": len(closed),
-        "wins": len(wins),
-        "losses": len(losses),
+        "total_trades": len(closed), "wins": len(wins), "losses": len(losses),
         "win_rate": round(len(wins) / len(closed) * 100, 1),
         "avg_win_pct": round(sum(t["pnl_pct"] for t in wins) / max(len(wins), 1), 2),
         "avg_loss_pct": round(sum(t["pnl_pct"] for t in losses) / max(len(losses), 1), 2),
@@ -430,7 +451,6 @@ def get_personal_stats():
 # ─── IMPROVEMENT 10: TIME OF DAY HEAT MAP ────────────────────────────────────
 
 def update_time_heatmap(symbol, entry_hour, exit_hour, pnl_pct):
-    """Track which hours produce the best winning trades."""
     opt = load_json(TIME_OPT_FILE, {})
     key = f"hour_{entry_hour}"
     if key not in opt:
@@ -438,25 +458,21 @@ def update_time_heatmap(symbol, entry_hour, exit_hour, pnl_pct):
     opt[key]["total"] += 1
     opt[key]["pnl_sum"] += pnl_pct
     opt[key]["avg_pnl"] = round(opt[key]["pnl_sum"] / opt[key]["total"], 2)
-    if pnl_pct > 0.5:
-        opt[key]["wins"] += 1
+    if pnl_pct > 0.5: opt[key]["wins"] += 1
     save_json(TIME_OPT_FILE, opt)
 
 def get_best_trading_window():
     opt = load_json(TIME_OPT_FILE, {})
     if not opt: return "9:30-10:30 AM (collecting data)"
-    # Weight by win rate AND avg pnl
     best_key = max(opt, key=lambda k: opt[k].get("avg_pnl", 0) if opt[k].get("total", 0) >= 3 else -99)
-    bh = int(best_key.replace("hour_", ""))
-    eh = bh + 1
+    bh = int(best_key.replace("hour_", "")); eh = bh + 1
     p = "AM" if bh < 12 else "PM"
-    h12 = bh if bh <= 12 else bh - 12
-    e12 = eh if eh <= 12 else eh - 12
+    h12 = bh if bh <= 12 else bh - 12; e12 = eh if eh <= 12 else eh - 12
     total = opt[best_key].get("total", 0)
     wr = round(opt[best_key].get("wins", 0) / max(total, 1) * 100)
     return f"{h12}:00-{e12}:00 {p} ({wr}% win rate, {total} trades)"
 
-# ─── EXISTING FUNCTIONS ───────────────────────────────────────────────────────
+# ─── CORE FUNCTIONS ───────────────────────────────────────────────────────────
 
 def get_spy_condition():
     try:
@@ -663,15 +679,13 @@ def train_ml_model():
     if not ML_AVAILABLE: return None
     history = load_json(HISTORY_FILE, [])
     picks = [p for e in history for p in e.get("picks", []) if p.get("outcome") and p.get("features")]
-    # Also incorporate personal trade log
-    trades = load_json(TRADE_LOG_FILE, [])
     if len(picks) < 20:
         print(f"Not enough data for ML ({len(picks)} picks, need 20+)")
         return None
     try:
-        keys = ["gap_pct", "rvol", "atr_pct", "tech_score", "adx", "weekly_trend",
-                "float_score", "rs_score", "pm_change", "spy_modifier", "sector_score",
-                "rr_ratio", "short_squeeze_score", "gap_atr_ratio", "institutional_score"]
+        keys = ["gap_pct","rvol","atr_pct","tech_score","adx","weekly_trend",
+                "float_score","rs_score","pm_change","spy_modifier","sector_score",
+                "rr_ratio","short_squeeze_score","gap_atr_ratio","institutional_score"]
         X = [[p["features"].get(k, 0) or 0 for k in keys] for p in picks]
         y = [1 if p["outcome"] == "win" else 0 for p in picks]
         sc = StandardScaler(); Xs = sc.fit_transform(X)
@@ -846,7 +860,7 @@ def run_morning_scan():
 # ─── MAIN SCANNER ─────────────────────────────────────────────────────────────
 
 def run_scanner():
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] DayEdge v4.0 starting...")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] DayEdge v4.1 starting — {len(DEFAULT_WATCHLIST)} stocks...")
     update_outcomes()
     train_ml_model()
     print("Checking SPY..."); spy_cond, spy_mod = get_spy_condition()
@@ -864,7 +878,6 @@ def run_scanner():
             last = float(df['Close'].iloc[-1]); dv = calculate_dollar_volume(df)
             if dv < 5_000_000: continue
 
-            # Collect all signals
             float_score, float_m = get_float_score(ticker)
             earnings_risky, days_earn = get_earnings_risk(ticker)
             earnings_risky = bool(earnings_risky)
@@ -952,7 +965,7 @@ def run_scanner():
     }
     save_json(RESULTS_FILE, output)
     save_scan_to_history(results)
-    print(f"Done. {len(results)} setups found. Market: {spy_cond}")
+    print(f"Done. {len(results)} setups found from {len(DEFAULT_WATCHLIST)} stocks. Market: {spy_cond}")
     return output
 
 # ─── SCORING ENGINE v4 ────────────────────────────────────────────────────────
@@ -978,12 +991,10 @@ def score_stock_v4(features, ml_adj=0):
 
     if dv < 10_000_000: return 0, ["🔴 Dollar volume under $10M — excluded"]
 
-    # Gap scoring (normalized to ATR - improvement #8)
     if 2 <= g <= 8: score += 3; reasons.append(f"✅ Ideal gap ({g}%)")
     elif 8 < g <= 15: score += 2; reasons.append(f"⚠️ Large gap ({g}%) — may be extended")
     elif 0.5 <= g < 2: score += 1; reasons.append(f"🔹 Small gap ({g}%)")
     elif g < -2: score -= 1; reasons.append(f"🔴 Gapping down ({g}%)")
-    # ATR-normalized gap bonus
     if gap_atr >= 3: score += 1; reasons.append(f"✅ Gap is {gap_atr}x ATR — significant move")
     elif gap_atr >= 2: reasons.append(f"🔹 Gap is {gap_atr}x ATR — solid move")
 
@@ -991,65 +1002,53 @@ def score_stock_v4(features, ml_adj=0):
     if gfm > 0: reasons.append("✅ Historically continues gaps")
     elif gfm < 0: reasons.append("⚠️ Historically fills gaps — caution")
 
-    # Pre-market change + volume (improvements #6)
     if pm > 2: score += 2; reasons.append(f"✅ Strong pre-market ({pm}%)")
     elif pm > 0.5: score += 1; reasons.append(f"🔹 Pre-market positive ({pm}%)")
     elif pm < -1: score -= 1; reasons.append(f"⚠️ Pre-market weak ({pm}%)")
     if pm_vol > 20: score += 1; reasons.append(f"✅ Heavy pre-market volume ({pm_vol}% of avg daily)")
     elif pm_vol > 10: reasons.append(f"🔹 Decent pre-market volume ({pm_vol}% of avg daily)")
 
-    # RVOL
     if rvol >= 3: score += 3; reasons.append(f"✅ Very high RVOL ({rvol}x)")
     elif rvol >= 2: score += 2; reasons.append(f"✅ High RVOL ({rvol}x)")
     elif rvol >= 1.5: score += 1; reasons.append(f"🔹 Above avg RVOL ({rvol}x)")
     else: reasons.append(f"⚠️ Low RVOL ({rvol}x)")
 
-    # Technical levels
     score += tech
     if tech == 3: reasons.append("✅ Strong technical setup")
     elif tech == 2: reasons.append("🔹 Decent technical setup")
     elif tech == 1: reasons.append("⚠️ Weak technical setup")
 
-    # Institutional levels (improvement #2)
     if inst >= 3: score += 2; reasons.append("✅ Above VWAP + all key MAs — institutional support")
     elif inst == 2: score += 1; reasons.append("🔹 Above most key levels")
     elif inst == 1: reasons.append("⚠️ Mixed signals on key levels")
     elif inst == 0: score -= 1; reasons.append("🔴 Below key institutional levels")
 
-    # ADX
     if adx > 30: score += 2; reasons.append(f"✅ Very strong trend (ADX {adx})")
     elif adx > 25: score += 1; reasons.append(f"✅ Strong trend (ADX {adx})")
     elif adx < 20: score -= 1; reasons.append(f"⚠️ Choppy/weak trend (ADX {adx})")
 
-    # Weekly trend
     if wt == 1: score += 2; reasons.append("✅ Weekly uptrend confirmed")
     elif wt == -1: score -= 2; reasons.append("🔴 Fighting weekly downtrend")
 
-    # Short squeeze potential (improvement #4)
     if squeeze >= 2: score += 2; reasons.append("🔥 High short interest — squeeze potential!")
     elif squeeze == 1: score += 1; reasons.append("⚡ Moderate short interest — some squeeze risk")
 
-    # Sector leader (improvement #5)
     if leader >= 2: score += 2; reasons.append("⭐ Sector leader — strongest in hot sector!")
     elif leader == 1: score += 1; reasons.append("🔹 Outperforming sector peers")
 
-    # News sentiment (improvement #7)
     if sentiment >= 2: score += 2; reasons.append("✅ Strongly bullish news sentiment")
     elif sentiment == 1: score += 1; reasons.append("🔹 Positive news sentiment")
     elif cat and sentiment == 0: score += 1; reasons.append("✅ News catalyst detected")
     elif sentiment <= -2: score -= 2; reasons.append("🔴 Bearish news sentiment")
     elif sentiment == -1: score -= 1; reasons.append("⚠️ Slightly negative news")
 
-    # Unusual options
     if uo: score += 1; reasons.append("✅ Unusual options activity")
 
-    # Earnings reaction history (improvement #3)
     if earn and reliable_gapper:
         score += 1; reasons.append("✅ Earnings risk BUT historically gaps up big")
     elif earn:
         score -= 3; reasons.append("🔴 EARNINGS WITHIN 3 DAYS — high risk")
 
-    # Market conditions
     score += spy
     if spy > 0: reasons.append("✅ Market bullish (SPY)")
     elif spy < 0: reasons.append("🔴 Market bearish (SPY) — caution")
@@ -1067,7 +1066,6 @@ def score_stock_v4(features, ml_adj=0):
     if rs > 0: reasons.append("✅ Outperforming SPY")
     elif rs < 0: reasons.append("⚠️ Underperforming SPY")
 
-    # Risk filters
     if atr < 1.5: score -= 1; reasons.append(f"⚠️ Low volatility ({atr}% ATR)")
     elif atr >= 3: reasons.append(f"✅ Good daily range ({atr}% ATR)")
     if last < 5: score -= 2; reasons.append("🔴 Price under $5")
@@ -1076,7 +1074,6 @@ def score_stock_v4(features, ml_adj=0):
         if rr >= 2: score += 1; reasons.append(f"✅ Good R/R ({rr}:1)")
         elif rr < 1: score -= 1; reasons.append(f"⚠️ Poor R/R ({rr}:1)")
 
-    # ML adjustment
     if ml_adj != 0:
         pts = round(ml_adj * 2); score += pts
         reasons.append(f"🤖 ML {'boost' if pts > 0 else 'caution'} ({'+' if pts > 0 else ''}{pts}pts)")
@@ -1086,13 +1083,10 @@ def score_stock_v4(features, ml_adj=0):
 # ─── API ENDPOINTS FOR TRADE LOGGING ─────────────────────────────────────────
 
 def api_log_trade(symbol, action, price, notes=""):
-    """Called from app.py when user logs a trade via dashboard."""
     return log_trade(symbol, action, price, notes)
 
 def api_close_trade(trade_id, exit_price):
-    """Called from app.py when user closes a trade."""
     update_trade_outcome(trade_id, exit_price)
-    # Update time heatmap
     trades = load_json(TRADE_LOG_FILE, [])
     for t in trades:
         if t["id"] == trade_id and t.get("pnl_pct") is not None:
