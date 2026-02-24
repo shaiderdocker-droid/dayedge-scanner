@@ -21,32 +21,41 @@ import yfinance as yf
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+
+# ── SESSION / AUTH SETUP ─────────────────────────────────────────────────────
+# Railway runs behind a reverse proxy (HTTPS termination).
+# ProxyFix tells Flask to trust the X-Forwarded headers so sessions work.
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+app.secret_key = os.environ.get('SECRET_KEY', 'dayedge-secret-key-2026-xK9mP2vL7n')
+app.config['SESSION_COOKIE_SECURE']            = False  # allow both http and https
+app.config['SESSION_COOKIE_HTTPONLY']          = True
+app.config['SESSION_COOKIE_SAMESITE']          = 'Lax'
+app.config['SESSION_COOKIE_NAME']              = 'dayedge_session'
+app.config['PERMANENT_SESSION_LIFETIME']       = timedelta(days=7)
 
 latest_results = None
 latest_morning = None
 scan_status = {"running": False, "task": None, "started": None, "error": None}
 
-# ── AUTH CONFIG ───────────────────────────────────────────────────────────────
-# Credentials stored in environment variables for security.
-# Set these in Railway: ADMIN_USER, ADMIN_PASS, USER_USER, USER_PASS
-# Passwords are stored as SHA-256 hashes.
+# ── AUTH ──────────────────────────────────────────────────────────────────────
 
 def hash_pw(pw):
-    return hashlib.sha256(pw.encode()).hexdigest()
+    return hashlib.sha256(pw.encode('utf-8')).hexdigest()
 
-USERS = {
-    os.environ.get('ADMIN_USER', 'admin'): {
-        'password_hash': hash_pw(os.environ.get('ADMIN_PASS', 'dayedge_admin_2026')),
-        'role': 'admin'
-    },
-    os.environ.get('USER_USER', 'trader'): {
-        'password_hash': hash_pw(os.environ.get('USER_PASS', 'dayedge_trader_2026')),
-        'role': 'user'
+def get_users():
+    """Always read from env so Railway variable updates take effect immediately."""
+    admin_user = os.environ.get('ADMIN_USER', 'admin').strip().lower()
+    admin_pass = os.environ.get('ADMIN_PASS', 'dayedge_admin_2026').strip()
+    user_user  = os.environ.get('USER_USER',  'trader').strip().lower()
+    user_pass  = os.environ.get('USER_PASS',  'dayedge_trader_2026').strip()
+    print(f"[AUTH] Users configured: admin_user={admin_user!r}, user_user={user_user!r}")
+    return {
+        admin_user: {'password_hash': hash_pw(admin_pass), 'role': 'admin'},
+        user_user:  {'password_hash': hash_pw(user_pass),  'role': 'user'},
     }
-}
 
-# Tabs/features accessible by role
 ROLE_ACCESS = {
     'admin': ['watchlist','morning','sectors','backtest','exit','live','premarket','risk','eod','patterns','journal'],
     'user':  ['watchlist','morning','sectors','backtest','exit','live','premarket','risk']
@@ -188,20 +197,38 @@ def login_page():
 def do_login():
     data     = request.get_json() or {}
     username = data.get('username', '').strip().lower()
-    password = data.get('password', '')
+    password = data.get('password', '').strip()
 
-    user = USERS.get(username)
-    if not user or user['password_hash'] != hash_pw(password):
+    print(f"[LOGIN] Attempt: username={username!r}")
+
+    if not username or not password:
+        return jsonify({'error': 'Username and password required'}), 400
+
+    users    = get_users()
+    user     = users.get(username)
+    pw_hash  = hash_pw(password)
+
+    print(f"[LOGIN] Known users: {list(users.keys())}")
+    print(f"[LOGIN] User found: {user is not None}")
+    if user:
+        print(f"[LOGIN] Hash match: {user['password_hash'] == pw_hash}")
+
+    if not user or user['password_hash'] != pw_hash:
         return jsonify({'error': 'Invalid username or password'}), 401
 
+    # Set session
+    session.clear()
     session.permanent = True
     session['username'] = username
     session['role']     = user['role']
+
+    print(f"[LOGIN] Success: {username} role={user['role']} session_id={request.cookies.get('dayedge_session','none')}")
+
     return jsonify({
-        'ok':      True,
+        'ok':       True,
         'username': username,
-        'role':    user['role'],
-        'access':  ROLE_ACCESS[user['role']]
+        'role':     user['role'],
+        'access':   ROLE_ACCESS[user['role']]
     })
 
 @app.route('/api/logout', methods=['POST'])
@@ -1113,6 +1140,23 @@ def get_quote(symbol):
 
 # ── STATUS ────────────────────────────────────────────────────────────────────
 
+@app.route('/api/debug-auth')
+def debug_auth():
+    """Shows auth config status — no passwords exposed, just confirms vars are set."""
+    users = get_users()
+    return jsonify({
+        'ADMIN_USER_set':   bool(os.environ.get('ADMIN_USER')),
+        'ADMIN_USER_value': os.environ.get('ADMIN_USER', '(using default: admin)'),
+        'ADMIN_PASS_set':   bool(os.environ.get('ADMIN_PASS')),
+        'USER_USER_set':    bool(os.environ.get('USER_USER')),
+        'USER_USER_value':  os.environ.get('USER_USER', '(using default: trader)'),
+        'USER_PASS_set':    bool(os.environ.get('USER_PASS')),
+        'SECRET_KEY_set':   bool(os.environ.get('SECRET_KEY')),
+        'known_usernames':  list(users.keys()),
+        'session_active':   'username' in session,
+        'session_user':     session.get('username', None),
+    })
+
 @app.route('/api/status')
 def status():
     return jsonify({
@@ -1125,5 +1169,3 @@ def status():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
-# DayEdge v5 - redeploy
