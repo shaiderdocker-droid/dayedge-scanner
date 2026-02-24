@@ -1373,8 +1373,14 @@ async function loadSPY(){
     const txt  = document.getElementById('spyText');
     const cls  = d.status==='bullish'?'spy-bull':d.status==='bearish'?'spy-bear':'spy-neut';
     pill.className = 'spy-pill ' + cls;
-    const sign = d.change_pct>=0?'+':'';
-    txt.textContent = `SPY $${d.price} ${sign}${d.change_pct}%`;
+    if(d.price && d.change_pct !== undefined){
+      const sign = d.change_pct>=0?'+':'';
+      txt.textContent = `SPY $${d.price} ${sign}${d.change_pct}%`;
+    } else {
+      // Outside market hours — show status only
+      const label = d.status==='bullish'?'BULLISH':d.status==='bearish'?'BEARISH':d.status==='unknown'?'CLOSED':'NEUTRAL';
+      txt.textContent = `SPY ${label}`;
+    }
     dot.style.background = d.status==='bullish'?'var(--green)':d.status==='bearish'?'var(--red)':'var(--yellow)';
   }catch(e){}
 }
