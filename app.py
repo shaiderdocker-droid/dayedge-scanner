@@ -129,6 +129,11 @@ def make_serializable(obj):
 
 # ── GOOGLE SHEETS SYNC ───────────────────────────────────────────────────────
 
+# ── EVENING SCAN SHEET (for persistence across Railway restarts) ─────────────
+EVENING_SHEET_NAME  = "Evening Scan"
+MORNING_SHEET_NAME  = "Morning Go-List"
+PERSISTENCE_SHEET   = "Last Scan"   # single-row sheet storing raw JSON for recovery
+
 SHEET_COLUMNS = [
     "Date", "Symbol", "Grade", "Evening Score", "Prev Close",
     "PM Change %", "PM Volume %", "Entry", "Stop", "Stop %",
@@ -199,6 +204,69 @@ def ensure_sheet_header(ws):
             print("[SHEETS] Header row written")
     except Exception as e:
         print(f"[SHEETS] Header error: {e}")
+
+def save_scan_to_sheets(scan_data):
+    """Save evening scan results to Google Sheets for persistence across restarts."""
+    if not GSHEETS_AVAILABLE: return
+    client = get_sheets_client()
+    if not client: return
+    try:
+        sheet_id = os.environ.get("GOOGLE_SHEET_ID")
+        saved    = load_file(data_path("sheet_id.json")) or {}
+        sid      = sheet_id or saved.get("id")
+        if not sid: return
+
+        sh = client.open_by_key(sid)
+
+        # Get or create "Last Scan" worksheet
+        try:
+            ws = sh.worksheet(PERSISTENCE_SHEET)
+            ws.clear()
+        except:
+            ws = sh.add_worksheet(title=PERSISTENCE_SHEET, rows=5, cols=2)
+
+        # Store as two cells: timestamp and full JSON
+        import json as _json
+        ts   = scan_data.get("timestamp", datetime.now().isoformat())
+        data = _json.dumps(scan_data)
+        ws.update("A1", [["timestamp", ts], ["data", data]])
+        print(f"[SHEETS] Evening scan saved for persistence ({len(scan_data.get('results',[]))} stocks)")
+    except Exception as e:
+        print(f"[SHEETS] Save scan error: {e}")
+
+
+def restore_scan_from_sheets():
+    """Restore last evening scan from Google Sheets if local file is missing."""
+    if not GSHEETS_AVAILABLE: return None
+    client = get_sheets_client()
+    if not client: return None
+    try:
+        sheet_id = os.environ.get("GOOGLE_SHEET_ID")
+        saved    = load_file(data_path("sheet_id.json")) or {}
+        sid      = sheet_id or saved.get("id")
+        if not sid: return None
+
+        sh = client.open_by_key(sid)
+        try:
+            ws   = sh.worksheet(PERSISTENCE_SHEET)
+            rows = ws.get_all_values()
+        except:
+            return None
+
+        # Find the data row
+        import json as _json
+        for row in rows:
+            if len(row) >= 2 and row[0] == "data":
+                data = _json.loads(row[1])
+                print(f"[SHEETS] Restored evening scan from sheets: {len(data.get('results',[]))} stocks, ts={data.get('timestamp','?')}")
+                # Re-save locally so scanner can use it
+                save_file(data_path("scan_results.json"), data)
+                return data
+        return None
+    except Exception as e:
+        print(f"[SHEETS] Restore error: {e}")
+        return None
+
 
 def sync_morning_to_sheets(golist_data):
     """Push morning go-list to Google Sheets. Skips duplicates (same date+symbol)."""
@@ -310,6 +378,12 @@ def run_scan_background():
         scan_status["running"] = True
         scan_status["error"] = None
         latest_results = run_scanner()
+        # Save to Google Sheets for persistence across Railway restarts
+        if latest_results and (os.environ.get("GOOGLE_CREDENTIALS_JSON") or os.path.exists("google_credentials.json")):
+            try:
+                save_scan_to_sheets(latest_results)
+            except Exception as se:
+                print(f"[SHEETS] Evening persistence save error: {se}")
     except Exception as e:
         scan_status["error"] = str(e)
         print(f"Background scan error: {e}")
@@ -317,10 +391,19 @@ def run_scan_background():
         scan_status["running"] = False
 
 def run_morning_background():
-    global latest_morning, scan_status
+    global latest_morning, latest_results, scan_status
     try:
         scan_status["running"] = True
         scan_status["error"] = None
+        # Ensure evening scan results exist before running morning scan
+        if not load_file(data_path("scan_results.json")):
+            print("[MORNING] scan_results.json missing — attempting restore from Sheets...")
+            restored = restore_scan_from_sheets()
+            if restored:
+                print(f"[MORNING] Restored {len(restored.get('results',[]))} stocks — morning scan can proceed")
+                latest_results = restored
+            else:
+                print("[MORNING] No evening scan data found — morning scan may return empty list")
         latest_morning = run_morning_scan()
         # Auto-sync to Google Sheets if configured (admin feature)
         if latest_morning and os.environ.get("GOOGLE_CREDENTIALS_JSON") or os.path.exists("google_credentials.json"):
@@ -459,6 +542,15 @@ def get_scan():
     global latest_results
     if latest_results is None:
         latest_results = load_file(data_path("scan_results.json"))
+    # If still None (Railway restart wiped local file), try restoring from Sheets
+    if latest_results is None:
+        print("[STARTUP] scan_results.json missing — attempting restore from Google Sheets...")
+        try:
+            latest_results = restore_scan_from_sheets()
+            if latest_results:
+                print(f"[STARTUP] Restored {len(latest_results.get('results',[]))} stocks from Google Sheets")
+        except Exception as _e:
+            print(f"[STARTUP] Restore failed: {_e}")
     if latest_results is None:
         return jsonify({"error": "No scan results yet. Click Run Scan Now.", "results": []})
     return jsonify(make_serializable(latest_results))
