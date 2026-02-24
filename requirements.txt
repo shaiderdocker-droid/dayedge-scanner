@@ -8,3 +8,6 @@ gunicorn
 pytz
 yfinance
 scikit-learn
+gspread
+google-auth
+google-auth-oauthlib
