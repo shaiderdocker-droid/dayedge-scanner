@@ -21,6 +21,15 @@ import numpy as np
 import yfinance as yf
 from datetime import datetime, timedelta
 
+# Google Sheets integration (optional — only active if credentials are configured)
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials
+    GSHEETS_AVAILABLE = True
+except ImportError:
+    GSHEETS_AVAILABLE = False
+    print("[SHEETS] gspread not installed — Google Sheets sync disabled")
+
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.environ.get('SECRET_KEY', 'dayedge-secret-key-2026-xK9mP2vL7n')
@@ -107,6 +116,181 @@ def make_serializable(obj):
         return float(obj)
     return obj
 
+# ── GOOGLE SHEETS SYNC ───────────────────────────────────────────────────────
+
+SHEET_COLUMNS = [
+    "Date", "Symbol", "Grade", "Evening Score", "Prev Close",
+    "PM Change %", "PM Volume %", "Entry", "Stop", "Stop %",
+    "Target 1", "Target 2", "Target 3", "ATR",
+    "Sector", "RVOL", "Gap %", "ADX", "Float M",
+    "R/R Ratio", "Unusual Options", "Has Catalyst",
+    "Short Float %", "Squeeze Score", "Inst Score",
+    "Best Window", "Scan Timestamp"
+]
+
+def get_sheets_client():
+    """Build authenticated Google Sheets client from env var or credentials file."""
+    if not GSHEETS_AVAILABLE:
+        return None
+    try:
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
+        # Option 1: credentials JSON stored as env var (recommended for Railway)
+        creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+        if creds_json:
+            import json as _json
+            creds_dict = _json.loads(creds_json)
+            creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        # Option 2: credentials file on disk
+        elif os.path.exists("google_credentials.json"):
+            creds = Credentials.from_service_account_file("google_credentials.json", scopes=scopes)
+        else:
+            print("[SHEETS] No credentials found — set GOOGLE_CREDENTIALS_JSON env var")
+            return None
+        return gspread.authorize(creds)
+    except Exception as e:
+        print(f"[SHEETS] Auth error: {e}")
+        return None
+
+def get_or_create_sheet(client, spreadsheet_id=None):
+    """Open existing sheet by ID or create a new one named DayEdge Journal."""
+    try:
+        sheet_id = spreadsheet_id or os.environ.get("GOOGLE_SHEET_ID")
+        if sheet_id:
+            return client.open_by_key(sheet_id).sheet1
+        else:
+            # Create new spreadsheet
+            sh = client.create("DayEdge Morning Journal")
+            sh.share(None, perm_type='anyone', role='reader')  # anyone with link can view
+            print(f"[SHEETS] Created new sheet: {sh.url}")
+            # Save the ID so we reuse it
+            save_file("sheet_id.json", {"id": sh.id, "url": sh.url})
+            ws = sh.sheet1
+            ws.update_title("Morning Go-List")
+            return ws
+    except Exception as e:
+        print(f"[SHEETS] Open/create error: {e}")
+        return None
+
+def ensure_sheet_header(ws):
+    """Make sure row 1 has the correct column headers."""
+    try:
+        first_row = ws.row_values(1)
+        if first_row != SHEET_COLUMNS:
+            ws.insert_row(SHEET_COLUMNS, index=1)
+            # Format header row bold
+            ws.format("A1:AA1", {
+                "textFormat": {"bold": True},
+                "backgroundColor": {"red": 0.05, "green": 0.07, "blue": 0.1}
+            })
+            print("[SHEETS] Header row written")
+    except Exception as e:
+        print(f"[SHEETS] Header error: {e}")
+
+def sync_morning_to_sheets(golist_data):
+    """Push morning go-list to Google Sheets. Skips duplicates (same date+symbol)."""
+    if not GSHEETS_AVAILABLE:
+        return {"error": "gspread not installed on server"}
+
+    client = get_sheets_client()
+    if not client:
+        return {"error": "Google Sheets not configured — add GOOGLE_CREDENTIALS_JSON to Railway variables"}
+
+    ws = get_or_create_sheet(client)
+    if not ws:
+        return {"error": "Could not open or create Google Sheet"}
+
+    ensure_sheet_header(ws)
+
+    golist   = golist_data.get("golist", [])
+    scan_ts  = golist_data.get("timestamp", datetime.now().isoformat())
+    today    = datetime.now().strftime("%Y-%m-%d")
+
+    if not golist:
+        return {"error": "No stocks in go-list to sync"}
+
+    # Fetch all existing rows to check for duplicates
+    try:
+        existing_rows = ws.get_all_values()
+        # Build set of existing date+symbol combos (skip header row)
+        existing_keys = set()
+        for row in existing_rows[1:]:
+            if len(row) >= 2:
+                existing_keys.add(f"{row[0]}_{row[1]}")
+    except Exception as e:
+        print(f"[SHEETS] Read existing error: {e}")
+        existing_keys = set()
+
+    rows_to_add = []
+    skipped = 0
+
+    for s in golist:
+        sym = s.get("symbol", "")
+        key = f"{today}_{sym}"
+
+        if key in existing_keys:
+            skipped += 1
+            continue
+
+        tl = s.get("trade_levels") or {}
+        ev = load_file("scan_results.json") or {}
+        ev_results = {r["symbol"]: r for r in ev.get("results", [])}
+        ev_data = ev_results.get(sym, {})
+
+        row = [
+            today,
+            sym,
+            s.get("grade", ""),
+            s.get("evening_score", ""),
+            s.get("prev_close", ""),
+            s.get("pm_change", ""),
+            s.get("pm_vol_pct", ""),
+            tl.get("entry", ""),
+            tl.get("stop", ""),
+            tl.get("stop_pct", ""),
+            tl.get("target1", ""),
+            tl.get("target2", ""),
+            tl.get("target3", ""),
+            tl.get("atr", ""),
+            ev_data.get("sector_etf", s.get("sector_etf", "")),
+            ev_data.get("rvol", ""),
+            ev_data.get("gap_pct", ""),
+            ev_data.get("adx", ""),
+            ev_data.get("float_m", ""),
+            ev_data.get("rr_ratio", ""),
+            "Yes" if ev_data.get("unusual_options") else "No",
+            "Yes" if ev_data.get("has_catalyst") else "No",
+            ev_data.get("short_float_pct", ""),
+            ev_data.get("short_squeeze_score", ""),
+            ev_data.get("institutional_score", ""),
+            s.get("best_window", ""),
+            scan_ts,
+        ]
+        rows_to_add.append(row)
+
+    if rows_to_add:
+        # Batch append all new rows at once
+        ws.append_rows(rows_to_add, value_input_option="USER_ENTERED")
+        print(f"[SHEETS] Appended {len(rows_to_add)} rows, skipped {skipped} duplicates")
+
+    # Get the sheet URL for the response
+    try:
+        sheet_url = f"https://docs.google.com/spreadsheets/d/{ws.spreadsheet.id}"
+    except:
+        saved = load_file("sheet_id.json") or {}
+        sheet_url = saved.get("url", "")
+
+    return {
+        "ok":       True,
+        "added":    len(rows_to_add),
+        "skipped":  skipped,
+        "total":    len(golist),
+        "date":     today,
+        "sheet_url": sheet_url
+    }
+
 # ── BACKGROUND TASKS ─────────────────────────────────────────────────────────
 
 def run_scan_background():
@@ -127,6 +311,16 @@ def run_morning_background():
         scan_status["running"] = True
         scan_status["error"] = None
         latest_morning = run_morning_scan()
+        # Auto-sync to Google Sheets if configured (admin feature)
+        if latest_morning and os.environ.get("GOOGLE_CREDENTIALS_JSON") or os.path.exists("google_credentials.json"):
+            try:
+                result = sync_morning_to_sheets(latest_morning)
+                if result.get("ok"):
+                    print(f"[SHEETS] Auto-sync: {result['added']} rows added, {result['skipped']} skipped")
+                else:
+                    print(f"[SHEETS] Auto-sync skipped: {result.get('error','')}")
+            except Exception as se:
+                print(f"[SHEETS] Auto-sync error: {se}")
     except Exception as e:
         scan_status["error"] = str(e)
     finally:
@@ -1134,6 +1328,41 @@ def get_quote(symbol):
         return jsonify({"error": str(e)}), 500
 
 # ── STATUS ────────────────────────────────────────────────────────────────────
+
+# ── GOOGLE SHEETS ROUTES ─────────────────────────────────────────────────────
+
+@app.route('/api/sync-sheets', methods=['POST'])
+@admin_required
+def sync_sheets():
+    """Manually push current morning go-list to Google Sheets."""
+    morning = load_file("morning_golist.json")
+    if not morning or not morning.get("golist"):
+        return jsonify({"error": "No morning go-list found. Run morning scan first."}), 400
+    result = sync_morning_to_sheets(morning)
+    if result.get("ok"):
+        return jsonify(result)
+    return jsonify(result), 500
+
+@app.route('/api/sheet-status')
+@admin_required
+def sheet_status():
+    """Check if Google Sheets is configured and return sheet URL if so."""
+    configured = bool(
+        GSHEETS_AVAILABLE and (
+            os.environ.get("GOOGLE_CREDENTIALS_JSON") or
+            os.path.exists("google_credentials.json")
+        )
+    )
+    sheet_id   = os.environ.get("GOOGLE_SHEET_ID", "")
+    saved      = load_file("sheet_id.json") or {}
+    sheet_url  = f"https://docs.google.com/spreadsheets/d/{sheet_id}" if sheet_id else saved.get("url", "")
+    return jsonify({
+        "configured":       configured,
+        "gspread_installed": GSHEETS_AVAILABLE,
+        "has_credentials":  bool(os.environ.get("GOOGLE_CREDENTIALS_JSON") or os.path.exists("google_credentials.json")),
+        "has_sheet_id":     bool(sheet_id),
+        "sheet_url":        sheet_url,
+    })
 
 @app.route('/api/debug-auth')
 def debug_auth():
