@@ -85,6 +85,17 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
+# ── PERSISTENT DATA DIRECTORY ────────────────────────────────────────────────
+# Uses /data/ when Railway Volume is mounted at /data
+# Falls back to current directory for local development
+DATA_DIR = os.environ.get("DATA_DIR", "/data" if os.path.exists("/data") else ".")
+os.makedirs(DATA_DIR, exist_ok=True)
+print(f"[STORAGE] Data directory: {DATA_DIR}")
+
+def data_path(filename):
+    """Return full path to a data file in the persistent directory."""
+    return os.path.join(DATA_DIR, filename)
+
 # ── HELPERS ──────────────────────────────────────────────────────────────────
 
 def load_file(path):
@@ -166,7 +177,7 @@ def get_or_create_sheet(client, spreadsheet_id=None):
             sh.share(None, perm_type='anyone', role='reader')  # anyone with link can view
             print(f"[SHEETS] Created new sheet: {sh.url}")
             # Save the ID so we reuse it
-            save_file("sheet_id.json", {"id": sh.id, "url": sh.url})
+            save_file(data_path("sheet_id.json"), {"id": sh.id, "url": sh.url})
             ws = sh.sheet1
             ws.update_title("Morning Go-List")
             return ws
@@ -235,7 +246,7 @@ def sync_morning_to_sheets(golist_data):
             continue
 
         tl = s.get("trade_levels") or {}
-        ev = load_file("scan_results.json") or {}
+        ev = load_file(data_path("scan_results.json")) or {}
         ev_results = {r["symbol"]: r for r in ev.get("results", [])}
         ev_data = ev_results.get(sym, {})
 
@@ -279,7 +290,7 @@ def sync_morning_to_sheets(golist_data):
     try:
         sheet_url = f"https://docs.google.com/spreadsheets/d/{ws.spreadsheet.id}"
     except:
-        saved = load_file("sheet_id.json") or {}
+        saved = load_file(data_path("sheet_id.json")) or {}
         sheet_url = saved.get("url", "")
 
     return {
@@ -353,14 +364,14 @@ def scheduled_eod_save():
     """Auto-save EOD results at 4:15pm ET and append to history."""
     print(f"[SCHEDULER] Auto EOD save at {datetime.now()}")
     try:
-        eod = load_file("eod_results.json")
+        eod = load_file(data_path(data_path("eod_results.json")))
         if eod and eod.get("date") == datetime.now().strftime("%Y-%m-%d"):
-            history = load_file("eod_history.json") or []
+            history = load_file(data_path(data_path("eod_history.json"))) or []
             # Avoid duplicate dates
             history = [h for h in history if h.get("date") != eod["date"]]
             history.append(eod)
             history = history[-60:]  # keep 60 days
-            save_file("eod_history.json", history)
+            save_file(data_path(data_path("eod_history.json")), history)
             print("[SCHEDULER] EOD history saved")
     except Exception as e:
         print(f"[SCHEDULER] EOD save error: {e}")
@@ -447,7 +458,7 @@ def index():
 def get_scan():
     global latest_results
     if latest_results is None:
-        latest_results = load_file("scan_results.json")
+        latest_results = load_file(data_path("scan_results.json"))
     if latest_results is None:
         return jsonify({"error": "No scan results yet. Click Run Scan Now.", "results": []})
     return jsonify(make_serializable(latest_results))
@@ -457,7 +468,7 @@ def get_scan():
 def get_morning():
     global latest_morning
     if latest_morning is None:
-        latest_morning = load_file("morning_golist.json")
+        latest_morning = load_file(data_path("morning_golist.json"))
     if latest_morning is None:
         return jsonify({"golist": [], "message": "No morning scan yet."})
     return jsonify(make_serializable(latest_morning))
@@ -465,7 +476,7 @@ def get_morning():
 @app.route('/api/backtest')
 @login_required
 def get_backtest():
-    data = load_file("backtest_results.json")
+    data = load_file(data_path("backtest_results.json"))
     if data is None:
         return jsonify({"error": "No backtest run yet."})
     return jsonify(make_serializable(data))
@@ -517,7 +528,7 @@ def trigger_backtest():
 @login_required
 def live_tracker():
     """Real-time prices for morning go-list. Shows P&L vs entry and target zones."""
-    morning = load_file("morning_golist.json")
+    morning = load_file(data_path("morning_golist.json"))
     if not morning or not morning.get("golist"):
         return jsonify({"error": "No morning go-list. Run morning scan first.", "stocks": []})
 
@@ -604,11 +615,11 @@ def live_tracker():
 @login_required
 def premarket_momentum():
     """Pre-market momentum ranker — volume surge and price acceleration."""
-    morning = load_file("morning_golist.json")
+    morning = load_file(data_path("morning_golist.json"))
     golist  = (morning or {}).get("golist", [])
 
     # Also check evening scan for any high-scorers not in morning list
-    evening = load_file("scan_results.json")
+    evening = load_file(data_path("scan_results.json"))
     evening_results = (evening or {}).get("results", [])
     evening_map = {r["symbol"]: r for r in evening_results}
 
@@ -721,7 +732,7 @@ def score_gap_quality(sym, gap_pct, ticker_obj):
 @login_required
 def risk_dashboard():
     """Pre-market risk summary: total exposure, max loss, position sizing guide."""
-    morning = load_file("morning_golist.json")
+    morning = load_file(data_path("morning_golist.json"))
     golist  = (morning or {}).get("golist", [])
 
     if not golist:
@@ -859,14 +870,14 @@ def get_eod_results():
     """EOD results with force-refresh support."""
     from flask import request
     force = request.args.get("force", "false").lower() == "true"
-    EOD_FILE = "eod_results.json"
+    EOD_FILE = data_path("eod_results.json")
 
     if not force:
         cached = load_file(EOD_FILE)
         if cached and cached.get("date") == datetime.now().strftime("%Y-%m-%d"):
             return jsonify(cached)
 
-    morning = load_file("morning_golist.json")
+    morning = load_file(data_path("morning_golist.json"))
     if not morning or not morning.get("golist"):
         return jsonify({"error": "No morning go-list found. Run morning scan first.", "results": []})
 
@@ -976,11 +987,11 @@ def get_eod_results():
 
     # ── Auto-save to history every time EOD is refreshed ──────────────────
     try:
-        history = load_file("eod_history.json") or []
+        history = load_file(data_path(data_path("eod_history.json"))) or []
         history = [h for h in history if h.get("date") != output["date"]]
         history.append(output)
         history = sorted(history, key=lambda x: x.get("date",""))[-60:]
-        save_file("eod_history.json", history)
+        save_file(data_path(data_path("eod_history.json")), history)
     except Exception as e:
         print(f"History auto-save error: {e}")
 
@@ -989,7 +1000,7 @@ def get_eod_results():
 @app.route('/api/eod-history')
 @admin_required
 def get_eod_history():
-    history = load_file("eod_history.json") or []
+    history = load_file(data_path(data_path("eod_history.json"))) or []
     return jsonify(history)
 
 @app.route('/api/save-eod-history', methods=['POST'])
@@ -1000,23 +1011,23 @@ def save_eod_history():
     Also called automatically whenever EOD results are refreshed.
     """
     try:
-        eod = load_file("eod_results.json")
+        eod = load_file(data_path(data_path("eod_results.json")))
         if not eod:
             return jsonify({"error": "No EOD results to save. Refresh EOD Results first."}), 400
 
-        history = load_file("eod_history.json") or []
+        history = load_file(data_path(data_path("eod_history.json"))) or []
         # Replace existing entry for same date (idempotent)
         history = [h for h in history if h.get("date") != eod.get("date")]
         history.append(eod)
         history = sorted(history, key=lambda x: x.get("date",""))[-60:]  # keep last 60 days
-        save_file("eod_history.json", history)
+        save_file(data_path(data_path("eod_history.json")), history)
         return jsonify({"ok": True, "days_in_history": len(history), "date": eod.get("date")})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 # ── TRADE LOG — track which stocks user actually traded ───────────────────────
 
-TRADE_LOG_FILE = "trade_log.json"
+TRADE_LOG_FILE = data_path("trade_log.json")
 
 def load_trade_log():
     return load_file(TRADE_LOG_FILE) or {}
@@ -1061,14 +1072,14 @@ def update_trade_log():
         save_trade_log(log)
 
         # Also update eod_results.json so EOD tab reflects traded status
-        eod = load_file("eod_results.json")
+        eod = load_file(data_path(data_path("eod_results.json")))
         if eod and eod.get("date") == date:
             for r in eod.get("results", []):
                 if r["symbol"] == symbol:
                     r["traded"] = traded
                     r["actual_shares"] = shares
                     r["actual_entry"]  = entry if entry > 0 else r.get("entry", 0)
-            save_file("eod_results.json", eod)
+            save_file(data_path(data_path("eod_results.json")), eod)
 
         return jsonify({"ok": True, "key": key, "traded": traded})
     except Exception as e:
@@ -1080,7 +1091,7 @@ def update_trade_log():
 @admin_required
 def get_patterns():
     """Analyze EOD history to find YOUR personal edge patterns."""
-    history = load_file("eod_history.json") or []
+    history = load_file(data_path(data_path("eod_history.json"))) or []
     if len(history) < 3:
         return jsonify({"error": "Need at least 3 days of EOD history for pattern analysis.", "patterns": []})
 
@@ -1209,7 +1220,7 @@ def _insight(wr, avg, label):
 @admin_required
 def weekly_journal():
     """Auto-generated weekly performance summary from EOD history."""
-    history = load_file("eod_history.json") or []
+    history = load_file(data_path(data_path("eod_history.json"))) or []
     if not history:
         return jsonify({"error": "No history yet. EOD results build up over time.", "weeks": []})
 
@@ -1335,7 +1346,7 @@ def get_quote(symbol):
 @admin_required
 def sync_sheets():
     """Manually push current morning go-list to Google Sheets."""
-    morning = load_file("morning_golist.json")
+    morning = load_file(data_path("morning_golist.json"))
     if not morning or not morning.get("golist"):
         return jsonify({"error": "No morning go-list found. Run morning scan first."}), 400
     result = sync_morning_to_sheets(morning)
@@ -1354,7 +1365,7 @@ def sheet_status():
         )
     )
     sheet_id   = os.environ.get("GOOGLE_SHEET_ID", "")
-    saved      = load_file("sheet_id.json") or {}
+    saved      = load_file(data_path("sheet_id.json")) or {}
     sheet_url  = f"https://docs.google.com/spreadsheets/d/{sheet_id}" if sheet_id else saved.get("url", "")
     return jsonify({
         "configured":       configured,
