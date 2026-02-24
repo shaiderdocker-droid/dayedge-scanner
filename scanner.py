@@ -27,15 +27,25 @@ except ImportError:
     ML_AVAILABLE = False
 
 NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "")
-RESULTS_FILE = "scan_results.json"
-MORNING_FILE = "morning_golist.json"
-HISTORY_FILE = "scan_history.json"
-BACKTEST_FILE = "backtest_results.json"
-GAP_HISTORY_FILE = "gap_history.json"
-ML_MODEL_FILE = "ml_weights.json"
-TIME_OPT_FILE = "time_optimization.json"
-EARNINGS_HISTORY_FILE = "earnings_history.json"
-TRADE_LOG_FILE = "trade_log.json"
+
+# ── PERSISTENT DATA DIRECTORY ─────────────────────────────────────────────────
+# Uses /data/ when running on Railway with a Volume mounted at /data
+# Falls back to local directory for development
+DATA_DIR = os.environ.get("DATA_DIR", "/data" if os.path.exists("/data") else ".")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+def data_path(filename):
+    return os.path.join(DATA_DIR, filename)
+
+RESULTS_FILE          = data_path("scan_results.json")
+MORNING_FILE          = data_path("morning_golist.json")
+HISTORY_FILE          = data_path("scan_history.json")
+BACKTEST_FILE         = data_path("backtest_results.json")
+GAP_HISTORY_FILE      = data_path("gap_history.json")
+ML_MODEL_FILE         = data_path("ml_weights.json")
+TIME_OPT_FILE         = data_path("time_optimization.json")
+EARNINGS_HISTORY_FILE = data_path("earnings_history.json")
+TRADE_LOG_FILE        = data_path("trade_log.json")
 
 DEFAULT_WATCHLIST = [
     # --- Mega Cap Tech ---
