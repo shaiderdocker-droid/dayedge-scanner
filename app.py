@@ -11,7 +11,8 @@ All 8 live trading enhancements:
 8. Weekly performance journal
 """
 
-from flask import Flask, jsonify, Response, request, session, redirect, url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
+from flask import Flask, jsonify, Response, request, session, redirect
 from apscheduler.schedulers.background import BackgroundScheduler
 from scanner import run_scanner, run_morning_scan, run_backtest
 from functools import wraps
@@ -21,19 +22,13 @@ import yfinance as yf
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-
-# ── SESSION / AUTH SETUP ─────────────────────────────────────────────────────
-# Railway runs behind a reverse proxy (HTTPS termination).
-# ProxyFix tells Flask to trust the X-Forwarded headers so sessions work.
-from werkzeug.middleware.proxy_fix import ProxyFix
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
-
 app.secret_key = os.environ.get('SECRET_KEY', 'dayedge-secret-key-2026-xK9mP2vL7n')
-app.config['SESSION_COOKIE_SECURE']            = False  # allow both http and https
-app.config['SESSION_COOKIE_HTTPONLY']          = True
-app.config['SESSION_COOKIE_SAMESITE']          = 'Lax'
-app.config['SESSION_COOKIE_NAME']              = 'dayedge_session'
-app.config['PERMANENT_SESSION_LIFETIME']       = timedelta(days=7)
+app.config['SESSION_COOKIE_SECURE']      = False
+app.config['SESSION_COOKIE_HTTPONLY']    = True
+app.config['SESSION_COOKIE_SAMESITE']   = 'Lax'
+app.config['SESSION_COOKIE_NAME']       = 'dayedge_session'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
 latest_results = None
 latest_morning = None
