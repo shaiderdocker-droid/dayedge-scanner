@@ -573,14 +573,11 @@ def get_backtest():
 @app.route('/api/scan-status')
 @login_required
 def get_scan_status():
-    username = session.get('username', 'default')
-    u_status = user_scan_status.get(username, {})
-    has_results = username in user_scan_results or                   load_file(data_path(f"scan_results_{username}.json")) is not None
     return jsonify({
         "running":     scan_status["running"],
         "task":        scan_status["task"],
         "error":       scan_status["error"],
-        "has_results": has_results
+        "has_results": latest_results is not None
     })
 
 @app.route('/api/run-scan', methods=['POST'])
