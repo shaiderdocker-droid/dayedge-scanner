@@ -12,7 +12,7 @@ All 8 live trading enhancements:
 """
 
 from werkzeug.middleware.proxy_fix import ProxyFix
-from flask import Flask, jsonify, Response, request, session, redirect
+from flask import Flask, jsonify, Response, request, session, redirect, send_from_directory
 from apscheduler.schedulers.background import BackgroundScheduler
 from scanner import run_scanner, run_morning_scan, run_backtest
 from functools import wraps
@@ -472,8 +472,7 @@ scheduler.start()
 def login_page():
     if 'username' in session:
         return redirect('/')
-    with open(os.path.join(os.path.dirname(__file__), 'login.html'), 'r') as f:
-        return Response(f.read(), mimetype='text/html')
+    return send_from_directory('static', 'login.html')
 
 @app.route('/api/login', methods=['POST'])
 def do_login():
@@ -532,8 +531,7 @@ def me():
 @app.route('/')
 @login_required
 def index():
-    with open(os.path.join(os.path.dirname(__file__), 'index.html'), 'r') as f:
-        return Response(f.read(), mimetype='text/html')
+    return send_from_directory('static', 'index.html')
 
 @app.route('/api/scan')
 @login_required
