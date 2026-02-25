@@ -1771,7 +1771,7 @@ function applyRoleAccess(role, username){
   pill.style.display = 'flex';
   logoutBtn.style.display = 'inline-block';
   pillName.textContent = username;
-  pillRole.textContent = role;
+  pillRole.textContent = role.toUpperCase();
   pillRole.className = 'role-badge ' + (role === 'admin' ? 'role-admin' : 'role-user');
 
   // Lock tabs that this role cannot access
@@ -1878,12 +1878,12 @@ async function syncToSheets(){
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
 
-(async () => {
+document.addEventListener('DOMContentLoaded', async () => {
   await checkAuth();
   await loadAll();
   setInterval(loadAll, 60000);
   setTimeout(checkSheetsStatus, 1500);
-})();
+});
 </script>
 </body>
 </html>
