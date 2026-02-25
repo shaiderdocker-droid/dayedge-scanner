@@ -1012,9 +1012,13 @@ function renderBacktest(data){
 
 // ── LOAD ALL ──────────────────────────────────────────────────────────────────
 async function loadAll(){
+  // Always load evening scan (all roles can see watchlist)
   try{const r=await fetch('/api/scan');const d=await r.json();renderMain(d);}catch(e){}
-  try{const r=await fetch('/api/morning');const d=await r.json();renderMorning(d);}catch(e){}
-  try{const r=await fetch('/api/backtest');const d=await r.json();if(!d.error)renderBacktest(d);}catch(e){}
+  // Only load admin-only data if logged in as admin
+  if(currentRole === 'admin'){
+    try{const r=await fetch('/api/morning');const d=await r.json();renderMorning(d);}catch(e){}
+    try{const r=await fetch('/api/backtest');const d=await r.json();if(!d.error)renderBacktest(d);}catch(e){}
+  }
 }
 
 // ── POLLING ───────────────────────────────────────────────────────────────────
@@ -1800,13 +1804,18 @@ async function doLogout(){
 const origFetch = window.fetch;
 window.fetch = async function(...args){
   const r = await origFetch(...args);
+  // 401 = session expired → redirect to login
+  // 403 = not enough permissions → ignore silently (expected for user role)
   if(r.status === 401){
     const clone = r.clone();
     try{
       const d = await clone.json();
+      // Only redirect if server explicitly says to go to login
+      // NOT for permission-denied (admin-only routes returning 401 for user)
       if(d.redirect === '/login') window.location.href = '/login';
     }catch(e){}
   }
+  // 403 = admin-only route accessed by user — silently ignore, never redirect
   return r;
 };
 
@@ -1870,10 +1879,12 @@ async function syncToSheets(){
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
 
-checkAuth();
-loadAll();
-setInterval(loadAll,60000);
-setTimeout(checkSheetsStatus, 1500);
+checkAuth().then(() => {
+  loadAll();
+  // Refresh interval — respects role (loadAll already checks currentRole)
+  setInterval(loadAll, 60000);
+  setTimeout(checkSheetsStatus, 1500);
+});
 </script>
 </body>
 </html>
