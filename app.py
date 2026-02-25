@@ -446,14 +446,14 @@ def scheduled_eod_save():
     """Auto-save EOD results at 4:15pm ET and append to history."""
     print(f"[SCHEDULER] Auto EOD save at {datetime.now()}")
     try:
-        eod = load_file(data_path(data_path("eod_results.json")))
+        eod = load_file(data_path("eod_results.json"))
         if eod and eod.get("date") == datetime.now().strftime("%Y-%m-%d"):
-            history = load_file(data_path(data_path("eod_history.json"))) or []
+            history = load_file(data_path("eod_history.json")) or []
             # Avoid duplicate dates
             history = [h for h in history if h.get("date") != eod["date"]]
             history.append(eod)
             history = history[-60:]  # keep 60 days
-            save_file(data_path(data_path("eod_history.json")), history)
+            save_file(data_path("eod_history.json"), history)
             print("[SCHEDULER] EOD history saved")
     except Exception as e:
         print(f"[SCHEDULER] EOD save error: {e}")
@@ -1079,11 +1079,11 @@ def get_eod_results():
 
     # ── Auto-save to history every time EOD is refreshed ──────────────────
     try:
-        history = load_file(data_path(data_path("eod_history.json"))) or []
+        history = load_file(data_path("eod_history.json")) or []
         history = [h for h in history if h.get("date") != output["date"]]
         history.append(output)
         history = sorted(history, key=lambda x: x.get("date",""))[-60:]
-        save_file(data_path(data_path("eod_history.json")), history)
+        save_file(data_path("eod_history.json"), history)
     except Exception as e:
         print(f"History auto-save error: {e}")
 
@@ -1092,7 +1092,7 @@ def get_eod_results():
 @app.route('/api/eod-history')
 @admin_required
 def get_eod_history():
-    history = load_file(data_path(data_path("eod_history.json"))) or []
+    history = load_file(data_path("eod_history.json")) or []
     return jsonify(history)
 
 @app.route('/api/save-eod-history', methods=['POST'])
@@ -1103,16 +1103,16 @@ def save_eod_history():
     Also called automatically whenever EOD results are refreshed.
     """
     try:
-        eod = load_file(data_path(data_path("eod_results.json")))
+        eod = load_file(data_path("eod_results.json"))
         if not eod:
             return jsonify({"error": "No EOD results to save. Refresh EOD Results first."}), 400
 
-        history = load_file(data_path(data_path("eod_history.json"))) or []
+        history = load_file(data_path("eod_history.json")) or []
         # Replace existing entry for same date (idempotent)
         history = [h for h in history if h.get("date") != eod.get("date")]
         history.append(eod)
         history = sorted(history, key=lambda x: x.get("date",""))[-60:]  # keep last 60 days
-        save_file(data_path(data_path("eod_history.json")), history)
+        save_file(data_path("eod_history.json"), history)
         return jsonify({"ok": True, "days_in_history": len(history), "date": eod.get("date")})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1164,14 +1164,14 @@ def update_trade_log():
         save_trade_log(log)
 
         # Also update eod_results.json so EOD tab reflects traded status
-        eod = load_file(data_path(data_path("eod_results.json")))
+        eod = load_file(data_path("eod_results.json"))
         if eod and eod.get("date") == date:
             for r in eod.get("results", []):
                 if r["symbol"] == symbol:
                     r["traded"] = traded
                     r["actual_shares"] = shares
                     r["actual_entry"]  = entry if entry > 0 else r.get("entry", 0)
-            save_file(data_path(data_path("eod_results.json")), eod)
+            save_file(data_path("eod_results.json"), eod)
 
         return jsonify({"ok": True, "key": key, "traded": traded})
     except Exception as e:
@@ -1183,7 +1183,7 @@ def update_trade_log():
 @admin_required
 def get_patterns():
     """Analyze EOD history to find YOUR personal edge patterns."""
-    history = load_file(data_path(data_path("eod_history.json"))) or []
+    history = load_file(data_path("eod_history.json")) or []
     if len(history) < 3:
         return jsonify({"error": "Need at least 3 days of EOD history for pattern analysis.", "patterns": []})
 
@@ -1312,7 +1312,7 @@ def _insight(wr, avg, label):
 @admin_required
 def weekly_journal():
     """Auto-generated weekly performance summary from EOD history."""
-    history = load_file(data_path(data_path("eod_history.json"))) or []
+    history = load_file(data_path("eod_history.json")) or []
     if not history:
         return jsonify({"error": "No history yet. EOD results build up over time.", "weeks": []})
 
