@@ -383,9 +383,6 @@ td{padding:.85rem 1rem;vertical-align:middle}
     <span id="spyDot" style="width:7px;height:7px;border-radius:50%;background:var(--yellow);animation:pulse 2s infinite;flex-shrink:0"></span>
     <span id="spyText">SPY —</span>
   </div>
-  <div id="clockBox" style="font-family:var(--mono);font-size:.68rem;color:var(--tdim);letter-spacing:.05em;white-space:nowrap">
-    <span id="clock">—</span>
-  </div>
   <div class="hdr-right">
     <div class="user-pill" id="userPill" style="display:none">
       <span id="userPillName"></span>
@@ -792,17 +789,7 @@ td{padding:.85rem 1rem;vertical-align:middle}
 
 <script>
 // ── CLOCK ─────────────────────────────────────────────────────────────────────
-function updateClock(){
-  const now = new Date();
-  const et = now.toLocaleTimeString('en-US',{
-    hour:'2-digit',minute:'2-digit',second:'2-digit',
-    hour12:true,timeZone:'America/New_York'
-  });
-  const el = document.getElementById('clock');
-  if(el) el.textContent = et + ' ET';
-}
-updateClock();
-setInterval(updateClock, 1000);
+setInterval(()=>document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour12:false})+' LOCAL',1000);
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 function switchTab(name,el){
@@ -842,15 +829,8 @@ function fmtM(n){
 function money(n,d=2){return '$'+Math.abs(n).toFixed(d);}
 
 // ── RENDER MAIN TABLE ─────────────────────────────────────────────────────────
-let _lastScanTimestamp = null;
-
 function renderMain(data){
   if(!data) return;
-  // Only re-render the stock table if data has actually changed
-  // This prevents the watchlist from flashing on every 60s poll
-  const newTs = data.timestamp || '';
-  const shouldRenderTable = (newTs !== _lastScanTimestamp);
-  _lastScanTimestamp = newTs;
   const cond=data.market_condition||'neutral';
   const b=document.getElementById('mktBadge');
   b.textContent='MARKET: '+cond.toUpperCase(); b.className='mkt-badge '+cond;
@@ -858,7 +838,7 @@ function renderMain(data){
   document.getElementById('sScanned').textContent=data.total_scanned||'—';
   document.getElementById('sFound').textContent=(data.results||[]).length;
   document.getElementById('sGradeA').textContent=(data.results||[]).filter(r=>r.grade==='A').length;
-  if(data.timestamp) document.getElementById('sTime').textContent=new Date(data.timestamp).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'}) + ' ET';
+  if(data.timestamp) document.getElementById('sTime').textContent=new Date(data.timestamp).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
   if(data.market_date) document.getElementById('mktDate').textContent='FOR: '+data.market_date.toUpperCase();
 
   if(data.win_rate){
@@ -876,8 +856,6 @@ function renderMain(data){
   if(data.sector_rotation) renderSectors(data.sector_rotation);
 
   const tbody=document.getElementById('mainTable');
-  // Skip full re-render if table already has rows and data hasn't changed
-  if(!shouldRenderTable && tbody && tbody.children.length > 0) return;
   if(!data.results||!data.results.length){
     tbody.innerHTML=`<tr><td colspan="15"><div class="empty"><div class="empty-title">${data.error||'NO SETUPS FOUND'}</div><div class="empty-sub">Try running the scan again</div></div></td></tr>`;
     return;
@@ -953,7 +931,7 @@ function renderMain(data){
 // ── RENDER MORNING ────────────────────────────────────────────────────────────
 function renderMorning(data){
   if(!data) return;
-  if(data.timestamp) document.getElementById('morningTime').textContent='Updated: '+new Date(data.timestamp).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'}) + ' ET';
+  if(data.timestamp) document.getElementById('morningTime').textContent='Updated: '+new Date(data.timestamp).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
   const el=document.getElementById('goList');
   if(!data.golist||!data.golist.length){
     el.innerHTML=`<div class="empty"><div class="empty-title">NO CONFIRMATIONS</div><div class="empty-sub">${data.message||'No stocks confirming pre-market strength'}</div></div>`;
@@ -1033,13 +1011,9 @@ function renderBacktest(data){
 
 // ── LOAD ALL ──────────────────────────────────────────────────────────────────
 async function loadAll(){
-  // Always load evening scan (all roles can see watchlist)
   try{const r=await fetch('/api/scan');const d=await r.json();renderMain(d);}catch(e){}
-  // Only load admin-only data if logged in as admin
-  if(currentRole === 'admin'){
-    try{const r=await fetch('/api/morning');const d=await r.json();renderMorning(d);}catch(e){}
-    try{const r=await fetch('/api/backtest');const d=await r.json();if(!d.error)renderBacktest(d);}catch(e){}
-  }
+  try{const r=await fetch('/api/morning');const d=await r.json();renderMorning(d);}catch(e){}
+  try{const r=await fetch('/api/backtest');const d=await r.json();if(!d.error)renderBacktest(d);}catch(e){}
 }
 
 // ── POLLING ───────────────────────────────────────────────────────────────────
@@ -1268,7 +1242,7 @@ async function loadEOD(force=false){
 
     renderEOD(d);
     eodLoaded = true;
-    note.textContent = `Last updated: ${new Date(d.timestamp).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'})} ET · Data from Yahoo Finance`;
+    note.textContent = `Last updated: ${new Date(d.timestamp).toLocaleTimeString()} · Data from Yahoo Finance`;
   }catch(e){
     note.textContent = 'Error fetching results: ' + e.message;
   }
@@ -1431,7 +1405,7 @@ async function loadLive(force=false){
     } else {
       renderLive(d);
     }
-    note.textContent = 'Updated: ' + new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'}) + ' ET';
+    note.textContent = 'Updated: ' + new Date().toLocaleTimeString();
   }catch(e){ note.textContent = 'Error: ' + e.message; }
   btn.disabled = false;
 }
@@ -1492,7 +1466,7 @@ async function loadPM(force=false){
     } else {
       renderPM(d);
     }
-    note.textContent = 'Updated: ' + new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'}) + ' ET · Best to check 8-9:30am ET';
+    note.textContent = 'Updated: ' + new Date().toLocaleTimeString() + ' · Best to check 8-9:30am ET';
   }catch(e){ note.textContent = 'Error: ' + e.message; }
   btn.disabled = false;
 }
@@ -1745,12 +1719,12 @@ let currentRole = null;
 
 const TAB_ROLES = {
   'evening':  'user',
-  'morning':  'admin',
+  'morning':  'user',
   'sectors':  'user',
-  'backtest': 'admin',
+  'backtest': 'user',
   'exit':     'user',
   'live':     'user',
-  'pm':       'admin',
+  'pm':       'user',
   'risk':     'user',
   'eod':      'admin',
   'pattern':  'admin',
@@ -1771,12 +1745,6 @@ async function checkAuth(){
     }
     currentRole = d.role;
     applyRoleAccess(d.role, d.username);
-    // Load data NOW that we know the role — not before
-    await loadAll();
-    if(currentRole === 'admin'){
-      setInterval(loadAll, 60000);
-      setTimeout(checkSheetsStatus, 1500);
-    }
   }catch(e){
     window.location.href = '/login';
   }
@@ -1796,7 +1764,6 @@ function applyRoleAccess(role, username){
 
   // Lock tabs that this role cannot access
   if(role !== 'admin'){
-    // Lock tabs that require admin
     document.querySelectorAll('.tab').forEach(tab => {
       const onclick = tab.getAttribute('onclick') || '';
       const match = onclick.match(/switchTab\('([^']+)'/);
@@ -1810,15 +1777,11 @@ function applyRoleAccess(role, username){
         }
       }
     });
-    // Hide admin-only header buttons
-    const adminBtns = ['syncSheetsBtn', 'morningBtn', 'backtestBtn'];
-    adminBtns.forEach(id => {
-      const el = document.getElementById(id);
-      if(el) el.style.display = 'none';
-    });
-    // Hide sync sheets note
-    const note = document.getElementById('syncSheetsNote');
-    if(note) note.style.display = 'none';
+    // Hide sync sheets button for non-admin
+    const syncBtn = document.getElementById('syncSheetsBtn');
+    if(syncBtn) syncBtn.style.display = 'none';
+    const syncNote = document.getElementById('syncSheetsNote');
+    if(syncNote) syncNote.style.display = 'none';
   }
 }
 
@@ -1833,18 +1796,13 @@ async function doLogout(){
 const origFetch = window.fetch;
 window.fetch = async function(...args){
   const r = await origFetch(...args);
-  // 401 = session expired → redirect to login
-  // 403 = not enough permissions → ignore silently (expected for user role)
   if(r.status === 401){
     const clone = r.clone();
     try{
       const d = await clone.json();
-      // Only redirect if server explicitly says to go to login
-      // NOT for permission-denied (admin-only routes returning 401 for user)
       if(d.redirect === '/login') window.location.href = '/login';
     }catch(e){}
   }
-  // 403 = admin-only route accessed by user — silently ignore, never redirect
   return r;
 };
 
@@ -1908,8 +1866,12 @@ async function syncToSheets(){
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
 
-// checkAuth handles everything — loads data after role is confirmed
-checkAuth();
+(async () => {
+  await checkAuth();
+  await loadAll();
+  setInterval(loadAll, 60000);
+  setTimeout(checkSheetsStatus, 1500);
+})();
 </script>
 </body>
 </html>
