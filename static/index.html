@@ -790,8 +790,22 @@ td{padding:.85rem 1rem;vertical-align:middle}
 <script>
 let currentRole = null;
 
+const ROLES = {
+  'evening':  'user',
+  'morning':  'user',
+  'sectors':  'user',
+  'backtest': 'user',
+  'exit':     'user',
+  'live':     'user',
+  'pm':       'user',
+  'risk':     'user',
+  'eod':      'admin',
+  'pattern':  'admin',
+  'journal':  'admin',
+};
+
 // ── CLOCK ─────────────────────────────────────────────────────────────────────
-setInterval(()=>document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour12:false})+' LOCAL',1000);
+setInterval(()=>{ const c=document.getElementById('clock'); if(c) c.textContent=new Date().toLocaleTimeString('en-US',{hour12:false})+' LOCAL'; },1000);
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 function switchTab(name,el){
@@ -1718,34 +1732,18 @@ async function saveEODHistory(){
 
 // ── AUTH ─────────────────────────────────────────────────────────────────────
 
-const TAB_ROLES = {
-  'evening':  'user',
-  'morning':  'user',
-  'sectors':  'user',
-  'backtest': 'user',
-  'exit':     'user',
-  'live':     'user',
-  'pm':       'user',
-  'risk':     'user',
-  'eod':      'admin',
-  'pattern':  'admin',
-  'journal':  'admin',
-};
 
 async function checkAuth(){
   try{
     const r = await fetch('/api/me');
-    console.log('[checkAuth] status:', r.status);
     if(r.status === 401){ window.location.href = '/login'; return; }
     const d = await r.json();
-    console.log('[checkAuth] response:', JSON.stringify(d));
     if(!d.authenticated){ window.location.href = '/login'; return; }
     currentRole = d.role;
     // Directly write into the header pill
     const isAdmin = (d.role === 'admin');
     const nameEl = document.getElementById('userPillName');
     const roleEl = document.getElementById('userPillRole');
-    console.log('[checkAuth] nameEl:', nameEl, 'roleEl:', roleEl);
     if(nameEl) nameEl.textContent = d.username || 'noname';
     if(roleEl) roleEl.textContent = d.role ? d.role.toUpperCase() : 'NOROLE';
     roleEl.style.color              = isAdmin ? '#00ff88' : '#4fc3f7';
