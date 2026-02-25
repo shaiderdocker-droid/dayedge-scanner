@@ -681,6 +681,18 @@ td{padding:.85rem 1rem;vertical-align:middle}
       <div class="eod-stat"><div class="eod-slabel">Date</div><div class="eod-sval" id="eodDate" style="font-size:1rem;padding-top:.3rem;color:var(--purple)">—</div></div>
     </div>
 
+    <!-- Dual stats panel -->
+    <div id="eodDual" style="display:none;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+      <div style="background:var(--panel);border:1px solid var(--border);padding:1rem 1.25rem">
+        <div style="font-family:var(--mono);font-size:.6rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.75rem">ALL STOCKS ON GO-LIST</div>
+        <div id="eodAllStats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem"></div>
+      </div>
+      <div style="background:var(--panel);border:1px solid var(--border);padding:1rem 1.25rem">
+        <div style="font-family:var(--mono);font-size:.6rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.75rem">STOCKS YOU TRADED</div>
+        <div id="eodTradedStats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem"></div>
+      </div>
+    </div>
+
     <!-- Refresh bar -->
     <div class="eod-refresh-bar">
       <button class="btn btn-purple" onclick="loadEOD(true)" id="eodRefreshBtn">↻ REFRESH RESULTS</button>
