@@ -863,9 +863,9 @@ function renderMain(data){
 
   if(data.sector_rotation) renderSectors(data.sector_rotation);
 
-  // Only wipe and rebuild the table if the scan data has changed
-  if(shouldRenderTable){
   const tbody=document.getElementById('mainTable');
+  // Skip full re-render if table already has rows and data hasn't changed
+  if(!shouldRenderTable && tbody && tbody.children.length > 0) return;
   if(!data.results||!data.results.length){
     tbody.innerHTML=`<tr><td colspan="15"><div class="empty"><div class="empty-title">${data.error||'NO SETUPS FOUND'}</div><div class="empty-sub">Try running the scan again</div></div></td></tr>`;
     return;
@@ -936,7 +936,6 @@ function renderMain(data){
     tbody.appendChild(row);
     tbody.appendChild(rrow);
   }); // end forEach
-  } // end shouldRenderTable
 }
 
 // ── RENDER MORNING ────────────────────────────────────────────────────────────
@@ -1400,7 +1399,9 @@ async function loadSPY(){
     dot.style.background = d.status==='bullish'?'var(--green)':d.status==='bearish'?'var(--red)':'var(--yellow)';
   }catch(e){}
 }
-setInterval(loadSPY, 60000);
+if(typeof currentRole === 'undefined' || currentRole === 'admin'){
+  setInterval(loadSPY, 60000);
+}
 loadSPY();
 
 // ── LIVE TRACKER ──────────────────────────────────────────────────────────────
@@ -1758,6 +1759,12 @@ async function checkAuth(){
     }
     currentRole = d.role;
     applyRoleAccess(d.role, d.username);
+    // Load data NOW that we know the role — not before
+    await loadAll();
+    if(currentRole === 'admin'){
+      setInterval(loadAll, 60000);
+      setTimeout(checkSheetsStatus, 1500);
+    }
   }catch(e){
     window.location.href = '/login';
   }
@@ -1889,12 +1896,8 @@ async function syncToSheets(){
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
 
-checkAuth().then(() => {
-  loadAll();
-  // Refresh interval — respects role (loadAll already checks currentRole)
-  setInterval(loadAll, 60000);
-  setTimeout(checkSheetsStatus, 1500);
-});
+// checkAuth handles everything — loads data after role is confirmed
+checkAuth();
 </script>
 </body>
 </html>
