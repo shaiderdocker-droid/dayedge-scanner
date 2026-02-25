@@ -392,9 +392,9 @@ td{padding:.85rem 1rem;vertical-align:middle}
     <div class="mkt-badge neutral" id="mktBadge">MARKET: —</div>
     <div class="window-badge" id="windowBadge">⏱ —</div>
     <span id="syncSheetsNote" style="display:none;font-family:var(--mono);font-size:.6rem"></span>
-    <button class="btn btn-blue" onclick="runMorning()">☀ MORNING SCAN</button>
+    <button class="btn btn-blue" id="morningBtn" onclick="runMorning()">☀ MORNING SCAN</button>
     <button class="btn" id="syncSheetsBtn" onclick="syncToSheets()" style="border-color:#0f9d58;color:#0f9d58;display:none" title="Push morning go-list to Google Sheets">📊 SYNC SHEETS</button>
-    <button class="btn btn-purple" onclick="runBacktest()">📊 BACKTEST</button>
+    <button class="btn btn-purple" id="backtestBtn" onclick="runBacktest()">📊 BACKTEST</button>
     <button class="btn btn-green" id="scanBtn" onclick="runScan()">▶ EVENING SCAN</button>
   </div>
 </header>
@@ -1718,12 +1718,12 @@ let currentRole = null;
 
 const TAB_ROLES = {
   'evening':  'user',
-  'morning':  'user',
+  'morning':  'admin',
   'sectors':  'user',
-  'backtest': 'user',
+  'backtest': 'admin',
   'exit':     'user',
   'live':     'user',
-  'pm':       'user',
+  'pm':       'admin',
   'risk':     'user',
   'eod':      'admin',
   'pattern':  'admin',
@@ -1763,13 +1763,13 @@ function applyRoleAccess(role, username){
 
   // Lock tabs that this role cannot access
   if(role !== 'admin'){
+    // Lock tabs that require admin
     document.querySelectorAll('.tab').forEach(tab => {
       const onclick = tab.getAttribute('onclick') || '';
-      // Extract tab name from onclick e.g. switchTab('eod',this)
       const match = onclick.match(/switchTab\('([^']+)'/);
       if(match){
         const tabName = match[1];
-        if(TAB_ROLES[tabName] === 'admin'){
+        if(ROLES[tabName] === 'admin'){
           tab.classList.add('tab-locked');
           tab.title = 'Admin access required';
           tab.setAttribute('onclick','');
@@ -1777,6 +1777,15 @@ function applyRoleAccess(role, username){
         }
       }
     });
+    // Hide admin-only header buttons
+    const adminBtns = ['syncSheetsBtn', 'morningBtn', 'backtestBtn'];
+    adminBtns.forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.display = 'none';
+    });
+    // Hide sync sheets note
+    const note = document.getElementById('syncSheetsNote');
+    if(note) note.style.display = 'none';
   }
 }
 
