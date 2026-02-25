@@ -1734,15 +1734,19 @@ const TAB_ROLES = {
 async function checkAuth(){
   try{
     const r = await fetch('/api/me');
+    console.log('[checkAuth] status:', r.status);
     if(r.status === 401){ window.location.href = '/login'; return; }
     const d = await r.json();
+    console.log('[checkAuth] response:', JSON.stringify(d));
     if(!d.authenticated){ window.location.href = '/login'; return; }
     currentRole = d.role;
     // Directly write into the header pill
     const isAdmin = (d.role === 'admin');
-    document.getElementById('userPillName').textContent = d.username || 'noname';
+    const nameEl = document.getElementById('userPillName');
     const roleEl = document.getElementById('userPillRole');
-    roleEl.textContent              = d.role ? d.role.toUpperCase() : 'NOROLE';
+    console.log('[checkAuth] nameEl:', nameEl, 'roleEl:', roleEl);
+    if(nameEl) nameEl.textContent = d.username || 'noname';
+    if(roleEl) roleEl.textContent = d.role ? d.role.toUpperCase() : 'NOROLE';
     roleEl.style.color              = isAdmin ? '#00ff88' : '#4fc3f7';
     roleEl.style.borderColor        = isAdmin ? 'rgba(0,255,136,.4)' : 'rgba(79,195,247,.4)';
     roleEl.style.background         = isAdmin ? 'rgba(0,255,136,.08)' : 'rgba(79,195,247,.08)';
