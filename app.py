@@ -42,6 +42,9 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 latest_results = None
 latest_morning = None
 scan_status = {"running": False, "task": None, "started": None, "error": None}
+# Per-user scan results — keyed by username so each account has its own scan
+user_scan_results = {}   # e.g. {"admin": {...}, "trader": {...}}
+user_scan_status  = {}   # per-user scan running status
 
 # ── AUTH ──────────────────────────────────────────────────────────────────────
 
@@ -62,7 +65,7 @@ def get_users():
 
 ROLE_ACCESS = {
     'admin': ['watchlist','morning','sectors','backtest','exit','live','premarket','risk','eod','patterns','journal'],
-    'user':  ['watchlist','morning','exit','live','risk']
+    'user':  ['watchlist','exit','live','risk']
 }
 
 def login_required(f):
@@ -372,16 +375,21 @@ def sync_morning_to_sheets(golist_data):
 
 # ── BACKGROUND TASKS ─────────────────────────────────────────────────────────
 
-def run_scan_background():
-    global latest_results, scan_status
+def run_scan_background(username='admin'):
+    global scan_status
     try:
         scan_status["running"] = True
         scan_status["error"] = None
-        latest_results = run_scanner()
-        # Save to Google Sheets for persistence across Railway restarts
-        if latest_results and (os.environ.get("GOOGLE_CREDENTIALS_JSON") or os.path.exists("google_credentials.json")):
+        user_scan_status[username] = {"running": True}
+        results = run_scanner()
+        # Save per-user results
+        user_scan_results[username] = results
+        save_file(data_path(f"scan_results_{username}.json"), results)
+        print(f"[SCAN] Saved results for user: {username}")
+        # Admin also saves to Google Sheets for persistence
+        if username == 'admin' and results and (os.environ.get("GOOGLE_CREDENTIALS_JSON") or os.path.exists("google_credentials.json")):
             try:
-                save_scan_to_sheets(latest_results)
+                save_scan_to_sheets(results)
             except Exception as se:
                 print(f"[SHEETS] Evening persistence save error: {se}")
     except Exception as e:
@@ -389,6 +397,7 @@ def run_scan_background():
         print(f"Background scan error: {e}")
     finally:
         scan_status["running"] = False
+        user_scan_status[username] = {"running": False}
 
 def run_morning_background():
     global latest_morning, latest_results, scan_status
@@ -539,21 +548,29 @@ def index():
 @app.route('/api/scan')
 @login_required
 def get_scan():
-    global latest_results
-    if latest_results is None:
-        latest_results = load_file(data_path("scan_results.json"))
-    # If still None (Railway restart wiped local file), try restoring from Sheets
-    if latest_results is None:
-        print("[STARTUP] scan_results.json missing — attempting restore from Google Sheets...")
+    username = session.get('username', 'default')
+    # Load from memory cache first
+    results = user_scan_results.get(username)
+    # Try per-user file
+    if results is None:
+        results = load_file(data_path(f"scan_results_{username}.json"))
+        if results:
+            user_scan_results[username] = results
+    # Fall back to shared file for backwards compatibility
+    if results is None:
+        results = load_file(data_path("scan_results.json"))
+    # Last resort — try restoring from Google Sheets (admin only)
+    if results is None and session.get('role') == 'admin':
         try:
-            latest_results = restore_scan_from_sheets()
-            if latest_results:
-                print(f"[STARTUP] Restored {len(latest_results.get('results',[]))} stocks from Google Sheets")
+            results = restore_scan_from_sheets()
+            if results:
+                user_scan_results[username] = results
+                print(f"[STARTUP] Restored {len(results.get('results',[]))} stocks from Google Sheets")
         except Exception as _e:
             print(f"[STARTUP] Restore failed: {_e}")
-    if latest_results is None:
+    if results is None:
         return jsonify({"error": "No scan results yet. Click Run Scan Now.", "results": []})
-    return jsonify(make_serializable(latest_results))
+    return jsonify(make_serializable(results))
 
 @app.route('/api/morning')
 @admin_required
@@ -576,22 +593,32 @@ def get_backtest():
 @app.route('/api/scan-status')
 @login_required
 def get_scan_status():
+    username = session.get('username', 'default')
+    u_status = user_scan_status.get(username, {})
+    has_results = username in user_scan_results or                   load_file(data_path(f"scan_results_{username}.json")) is not None
     return jsonify({
-        "running": scan_status["running"],
-        "task":    scan_status["task"],
-        "error":   scan_status["error"],
-        "has_results": latest_results is not None
+        "running":     scan_status["running"],
+        "task":        scan_status["task"],
+        "error":       scan_status["error"],
+        "has_results": has_results
     })
 
 @app.route('/api/run-scan', methods=['POST'])
 @login_required
 def trigger_scan():
     global scan_status
-    if scan_status["running"]:
+    username = session.get('username', 'default')
+    # Each user gets their own scan status
+    if user_scan_status.get(username, {}).get("running"):
         return jsonify({"status": "already_running"})
+    # Also block if any scan is already running (server resource protection)
+    if scan_status["running"]:
+        return jsonify({"status": "already_running", "message": "Another scan is in progress"})
+    scan_status["running"] = True
     scan_status["task"] = "evening"
     scan_status["started"] = datetime.now().isoformat()
-    threading.Thread(target=run_scan_background, daemon=True).start()
+    user_scan_status[username] = {"running": True, "started": datetime.now().isoformat()}
+    threading.Thread(target=run_scan_background, args=(username,), daemon=True).start()
     return jsonify({"status": "started"})
 
 @app.route('/api/run-morning', methods=['POST'])
