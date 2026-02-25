@@ -383,6 +383,9 @@ td{padding:.85rem 1rem;vertical-align:middle}
     <span id="spyDot" style="width:7px;height:7px;border-radius:50%;background:var(--yellow);animation:pulse 2s infinite;flex-shrink:0"></span>
     <span id="spyText">SPY —</span>
   </div>
+  <div id="clockBox" style="font-family:var(--mono);font-size:.68rem;color:var(--tdim);letter-spacing:.05em;white-space:nowrap">
+    <span id="clock">—</span>
+  </div>
   <div class="hdr-right">
     <div class="user-pill" id="userPill" style="display:none">
       <span id="userPillName"></span>
@@ -784,13 +787,22 @@ td{padding:.85rem 1rem;vertical-align:middle}
 
   <div class="status-bar">
     <div class="smono"><span class="sdot"></span>DAYEDGE v5 · 11 TABS · LIVE TRACKER · PRE-MARKET · RISK DASHBOARD · PATTERNS · JOURNAL</div>
-    <div class="smono" id="clock">—</div>
   </div>
 </main>
 
 <script>
 // ── CLOCK ─────────────────────────────────────────────────────────────────────
-setInterval(()=>document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true,timeZone:'America/New_York'})+' ET',1000);
+function updateClock(){
+  const now = new Date();
+  const et = now.toLocaleTimeString('en-US',{
+    hour:'2-digit',minute:'2-digit',second:'2-digit',
+    hour12:true,timeZone:'America/New_York'
+  });
+  const el = document.getElementById('clock');
+  if(el) el.textContent = et + ' ET';
+}
+updateClock();
+setInterval(updateClock, 1000);
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 function switchTab(name,el){
