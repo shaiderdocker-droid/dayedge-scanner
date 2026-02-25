@@ -385,8 +385,8 @@ td{padding:.85rem 1rem;vertical-align:middle}
   </div>
   <div class="hdr-right">
     <div class="user-pill" id="userPill" style="display:flex">
-      <span id="userPillName">loading...</span>
-      <span class="role-badge role-admin" id="userPillRole">admin</span>
+      <span id="userPillName">—</span>
+      <span class="role-badge" id="userPillRole">—</span>
     </div>
     <button class="btn btn-logout" onclick="doLogout()" style="display:inline-block" id="logoutBtn">⏻ LOGOUT</button>
     <div class="mkt-badge neutral" id="mktBadge">MARKET: —</div>
@@ -1753,7 +1753,7 @@ async function checkAuth(){
     if(logoutBtn){ logoutBtn.style.display = 'inline-block'; }
     if(pillName) { pillName.textContent    = d.username; }
     if(pillRole) {
-      pillRole.textContent = d.role;
+      pillRole.textContent = d.role.toUpperCase();
       pillRole.className   = 'role-badge ' + (d.role === 'admin' ? 'role-admin' : 'role-user');
     }
     applyRoleAccess(d.role, d.username);
