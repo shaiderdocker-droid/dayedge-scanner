@@ -62,7 +62,7 @@ def get_users():
 
 ROLE_ACCESS = {
     'admin': ['watchlist','morning','sectors','backtest','exit','live','premarket','risk','eod','patterns','journal'],
-    'user':  ['watchlist','morning','sectors','backtest','exit','live','premarket','risk']
+    'user':  ['watchlist','morning','exit','live','risk']
 }
 
 def login_required(f):
@@ -556,7 +556,7 @@ def get_scan():
     return jsonify(make_serializable(latest_results))
 
 @app.route('/api/morning')
-@login_required
+@admin_required
 def get_morning():
     global latest_morning
     if latest_morning is None:
@@ -566,7 +566,7 @@ def get_morning():
     return jsonify(make_serializable(latest_morning))
 
 @app.route('/api/backtest')
-@login_required
+@admin_required
 def get_backtest():
     data = load_file(data_path("backtest_results.json"))
     if data is None:
@@ -595,7 +595,7 @@ def trigger_scan():
     return jsonify({"status": "started"})
 
 @app.route('/api/run-morning', methods=['POST'])
-@login_required
+@admin_required
 def trigger_morning():
     global scan_status
     if scan_status["running"]:
@@ -605,7 +605,7 @@ def trigger_morning():
     return jsonify({"status": "started"})
 
 @app.route('/api/run-backtest', methods=['POST'])
-@login_required
+@admin_required
 def trigger_backtest():
     global scan_status
     if scan_status["running"]:
@@ -704,7 +704,7 @@ def live_tracker():
 # ── FEATURE 2 & 3: ENTRY TIMING + PRE-MARKET MOMENTUM ────────────────────────
 
 @app.route('/api/premarket-momentum')
-@login_required
+@admin_required
 def premarket_momentum():
     """Pre-market momentum ranker — volume surge and price acceleration."""
     morning = load_file(data_path("morning_golist.json"))
