@@ -36,7 +36,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dayedge-secret-key-2026-xK9mP2vL7
 app.config['SESSION_COOKIE_SECURE']      = os.environ.get('RAILWAY_ENVIRONMENT') is not None
 app.config['SESSION_COOKIE_HTTPONLY']    = True
 app.config['SESSION_COOKIE_SAMESITE']   = 'Lax'
-app.config['SESSION_COOKIE_NAME']       = 'dayedge_session'
+app.config['SESSION_COOKIE_NAME']       = 'dayedge_v5_session'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
 latest_results = None
