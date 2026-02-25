@@ -830,8 +830,15 @@ function fmtM(n){
 function money(n,d=2){return '$'+Math.abs(n).toFixed(d);}
 
 // ── RENDER MAIN TABLE ─────────────────────────────────────────────────────────
+let _lastScanTimestamp = null;
+
 function renderMain(data){
   if(!data) return;
+  // Only re-render the stock table if data has actually changed
+  // This prevents the watchlist from flashing on every 60s poll
+  const newTs = data.timestamp || '';
+  const shouldRenderTable = (newTs !== _lastScanTimestamp);
+  _lastScanTimestamp = newTs;
   const cond=data.market_condition||'neutral';
   const b=document.getElementById('mktBadge');
   b.textContent='MARKET: '+cond.toUpperCase(); b.className='mkt-badge '+cond;
@@ -856,6 +863,8 @@ function renderMain(data){
 
   if(data.sector_rotation) renderSectors(data.sector_rotation);
 
+  // Only wipe and rebuild the table if the scan data has changed
+  if(shouldRenderTable){
   const tbody=document.getElementById('mainTable');
   if(!data.results||!data.results.length){
     tbody.innerHTML=`<tr><td colspan="15"><div class="empty"><div class="empty-title">${data.error||'NO SETUPS FOUND'}</div><div class="empty-sub">Try running the scan again</div></div></td></tr>`;
@@ -926,7 +935,8 @@ function renderMain(data){
     row.addEventListener('click',()=>rrow.classList.toggle('open'));
     tbody.appendChild(row);
     tbody.appendChild(rrow);
-  });
+  }); // end forEach
+  } // end shouldRenderTable
 }
 
 // ── RENDER MORNING ────────────────────────────────────────────────────────────
