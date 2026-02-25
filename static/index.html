@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DayEdge v4 — Stock Scanner</title>
+<title>DayEdge v5 — Stock Scanner</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -1755,7 +1755,9 @@ async function checkAuth(){
     document.getElementById('logoutBtn').style.display = 'inline-block';
     applyRoleAccess(d.role, d.username);
   }catch(e){
-    window.location.href = '/login';
+    const roleEl = document.getElementById('userPillRole');
+    if(roleEl) roleEl.textContent = 'ERR';
+    console.error('checkAuth error:', e);
   }
 }
 
