@@ -42,9 +42,6 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 latest_results = None
 latest_morning = None
 scan_status = {"running": False, "task": None, "started": None, "error": None}
-# Per-user scan results — keyed by username so each account has its own scan
-user_scan_results = {}   # e.g. {"admin": {...}, "trader": {...}}
-user_scan_status  = {}   # per-user scan running status
 
 # ── AUTH ──────────────────────────────────────────────────────────────────────
 
@@ -65,7 +62,7 @@ def get_users():
 
 ROLE_ACCESS = {
     'admin': ['watchlist','morning','sectors','backtest','exit','live','premarket','risk','eod','patterns','journal'],
-    'user':  ['watchlist','exit','live','risk']
+    'user':  ['watchlist','morning','sectors','backtest','exit','live','premarket','risk']
 }
 
 def login_required(f):
@@ -375,21 +372,15 @@ def sync_morning_to_sheets(golist_data):
 
 # ── BACKGROUND TASKS ─────────────────────────────────────────────────────────
 
-def run_scan_background(username='admin'):
-    global scan_status
+def run_scan_background():
+    global latest_results, scan_status
     try:
         scan_status["running"] = True
         scan_status["error"] = None
-        user_scan_status[username] = {"running": True}
-        results = run_scanner()
-        # Save per-user results
-        user_scan_results[username] = results
-        save_file(data_path(f"scan_results_{username}.json"), results)
-        print(f"[SCAN] Saved results for user: {username}")
-        # Admin also saves to Google Sheets for persistence
-        if username == 'admin' and results and (os.environ.get("GOOGLE_CREDENTIALS_JSON") or os.path.exists("google_credentials.json")):
+        latest_results = run_scanner()
+        if latest_results and (os.environ.get("GOOGLE_CREDENTIALS_JSON") or os.path.exists("google_credentials.json")):
             try:
-                save_scan_to_sheets(results)
+                save_scan_to_sheets(latest_results)
             except Exception as se:
                 print(f"[SHEETS] Evening persistence save error: {se}")
     except Exception as e:
@@ -397,7 +388,6 @@ def run_scan_background(username='admin'):
         print(f"Background scan error: {e}")
     finally:
         scan_status["running"] = False
-        user_scan_status[username] = {"running": False}
 
 def run_morning_background():
     global latest_morning, latest_results, scan_status
@@ -548,32 +538,22 @@ def index():
 @app.route('/api/scan')
 @login_required
 def get_scan():
-    username = session.get('username', 'default')
-    # Load from memory cache first
-    results = user_scan_results.get(username)
-    # Try per-user file
-    if results is None:
-        results = load_file(data_path(f"scan_results_{username}.json"))
-        if results:
-            user_scan_results[username] = results
-    # Fall back to shared file for backwards compatibility
-    if results is None:
-        results = load_file(data_path("scan_results.json"))
-    # Last resort — try restoring from Google Sheets (admin only)
-    if results is None and session.get('role') == 'admin':
+    global latest_results
+    if latest_results is None:
+        latest_results = load_file(data_path("scan_results.json"))
+    if latest_results is None:
         try:
-            results = restore_scan_from_sheets()
-            if results:
-                user_scan_results[username] = results
-                print(f"[STARTUP] Restored {len(results.get('results',[]))} stocks from Google Sheets")
+            latest_results = restore_scan_from_sheets()
+            if latest_results:
+                print(f"[STARTUP] Restored {len(latest_results.get('results',[]))} stocks from Google Sheets")
         except Exception as _e:
             print(f"[STARTUP] Restore failed: {_e}")
-    if results is None:
+    if latest_results is None:
         return jsonify({"error": "No scan results yet. Click Run Scan Now.", "results": []})
-    return jsonify(make_serializable(results))
+    return jsonify(make_serializable(latest_results))
 
 @app.route('/api/morning')
-@admin_required
+@login_required
 def get_morning():
     global latest_morning
     if latest_morning is None:
@@ -583,7 +563,7 @@ def get_morning():
     return jsonify(make_serializable(latest_morning))
 
 @app.route('/api/backtest')
-@admin_required
+@login_required
 def get_backtest():
     data = load_file(data_path("backtest_results.json"))
     if data is None:
@@ -607,22 +587,15 @@ def get_scan_status():
 @login_required
 def trigger_scan():
     global scan_status
-    username = session.get('username', 'default')
-    # Each user gets their own scan status
-    if user_scan_status.get(username, {}).get("running"):
-        return jsonify({"status": "already_running"})
-    # Also block if any scan is already running (server resource protection)
     if scan_status["running"]:
-        return jsonify({"status": "already_running", "message": "Another scan is in progress"})
-    scan_status["running"] = True
+        return jsonify({"status": "already_running"})
     scan_status["task"] = "evening"
     scan_status["started"] = datetime.now().isoformat()
-    user_scan_status[username] = {"running": True, "started": datetime.now().isoformat()}
-    threading.Thread(target=run_scan_background, args=(username,), daemon=True).start()
+    threading.Thread(target=run_scan_background, daemon=True).start()
     return jsonify({"status": "started"})
 
 @app.route('/api/run-morning', methods=['POST'])
-@admin_required
+@login_required
 def trigger_morning():
     global scan_status
     if scan_status["running"]:
@@ -632,7 +605,7 @@ def trigger_morning():
     return jsonify({"status": "started"})
 
 @app.route('/api/run-backtest', methods=['POST'])
-@admin_required
+@login_required
 def trigger_backtest():
     global scan_status
     if scan_status["running"]:
@@ -731,7 +704,7 @@ def live_tracker():
 # ── FEATURE 2 & 3: ENTRY TIMING + PRE-MARKET MOMENTUM ────────────────────────
 
 @app.route('/api/premarket-momentum')
-@admin_required
+@login_required
 def premarket_momentum():
     """Pre-market momentum ranker — volume surge and price acceleration."""
     morning = load_file(data_path("morning_golist.json"))
