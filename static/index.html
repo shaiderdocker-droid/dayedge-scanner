@@ -790,7 +790,7 @@ td{padding:.85rem 1rem;vertical-align:middle}
 
 <script>
 // ── CLOCK ─────────────────────────────────────────────────────────────────────
-setInterval(()=>document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour12:false})+' LOCAL',1000);
+setInterval(()=>document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true,timeZone:'America/New_York'})+' ET',1000);
 
 // ── TABS ──────────────────────────────────────────────────────────────────────
 function switchTab(name,el){
@@ -846,7 +846,7 @@ function renderMain(data){
   document.getElementById('sScanned').textContent=data.total_scanned||'—';
   document.getElementById('sFound').textContent=(data.results||[]).length;
   document.getElementById('sGradeA').textContent=(data.results||[]).filter(r=>r.grade==='A').length;
-  if(data.timestamp) document.getElementById('sTime').textContent=new Date(data.timestamp).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  if(data.timestamp) document.getElementById('sTime').textContent=new Date(data.timestamp).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'}) + ' ET';
   if(data.market_date) document.getElementById('mktDate').textContent='FOR: '+data.market_date.toUpperCase();
 
   if(data.win_rate){
@@ -941,7 +941,7 @@ function renderMain(data){
 // ── RENDER MORNING ────────────────────────────────────────────────────────────
 function renderMorning(data){
   if(!data) return;
-  if(data.timestamp) document.getElementById('morningTime').textContent='Updated: '+new Date(data.timestamp).toLocaleTimeString();
+  if(data.timestamp) document.getElementById('morningTime').textContent='Updated: '+new Date(data.timestamp).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'}) + ' ET';
   const el=document.getElementById('goList');
   if(!data.golist||!data.golist.length){
     el.innerHTML=`<div class="empty"><div class="empty-title">NO CONFIRMATIONS</div><div class="empty-sub">${data.message||'No stocks confirming pre-market strength'}</div></div>`;
@@ -1256,7 +1256,7 @@ async function loadEOD(force=false){
 
     renderEOD(d);
     eodLoaded = true;
-    note.textContent = `Last updated: ${new Date(d.timestamp).toLocaleTimeString()} · Data from Yahoo Finance`;
+    note.textContent = `Last updated: ${new Date(d.timestamp).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'})} ET · Data from Yahoo Finance`;
   }catch(e){
     note.textContent = 'Error fetching results: ' + e.message;
   }
@@ -1419,7 +1419,7 @@ async function loadLive(force=false){
     } else {
       renderLive(d);
     }
-    note.textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    note.textContent = 'Updated: ' + new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'}) + ' ET';
   }catch(e){ note.textContent = 'Error: ' + e.message; }
   btn.disabled = false;
 }
@@ -1480,7 +1480,7 @@ async function loadPM(force=false){
     } else {
       renderPM(d);
     }
-    note.textContent = 'Updated: ' + new Date().toLocaleTimeString() + ' · Best to check 8-9:30am ET';
+    note.textContent = 'Updated: ' + new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'America/New_York'}) + ' ET · Best to check 8-9:30am ET';
   }catch(e){ note.textContent = 'Error: ' + e.message; }
   btn.disabled = false;
 }
