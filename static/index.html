@@ -384,11 +384,11 @@ td{padding:.85rem 1rem;vertical-align:middle}
     <span id="spyText">SPY —</span>
   </div>
   <div class="hdr-right">
-    <div class="user-pill" id="userPill" style="display:none">
-      <span id="userPillName"></span>
-      <span class="role-badge" id="userPillRole"></span>
+    <div class="user-pill" id="userPill" style="display:flex">
+      <span id="userPillName">...</span>
+      <span class="role-badge role-admin" id="userPillRole">...</span>
     </div>
-    <button class="btn btn-logout" onclick="doLogout()" style="display:none" id="logoutBtn">⏻ LOGOUT</button>
+    <button class="btn btn-logout" onclick="doLogout()" style="display:inline-block" id="logoutBtn">⏻ LOGOUT</button>
     <div class="mkt-badge neutral" id="mktBadge">MARKET: —</div>
     <div class="window-badge" id="windowBadge">⏱ —</div>
     <span id="syncSheetsNote" style="display:none;font-family:var(--mono);font-size:.6rem"></span>
@@ -1744,6 +1744,18 @@ async function checkAuth(){
       return;
     }
     currentRole = d.role;
+    // Always update pill directly here as a guarantee
+    const pill     = document.getElementById('userPill');
+    const pillName = document.getElementById('userPillName');
+    const pillRole = document.getElementById('userPillRole');
+    const logoutBtn= document.getElementById('logoutBtn');
+    if(pill)     { pill.style.display      = 'flex'; }
+    if(logoutBtn){ logoutBtn.style.display = 'inline-block'; }
+    if(pillName) { pillName.textContent    = d.username; }
+    if(pillRole) {
+      pillRole.textContent = d.role;
+      pillRole.className   = 'role-badge ' + (d.role === 'admin' ? 'role-admin' : 'role-user');
+    }
     applyRoleAccess(d.role, d.username);
   }catch(e){
     window.location.href = '/login';
