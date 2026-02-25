@@ -788,6 +788,8 @@ td{padding:.85rem 1rem;vertical-align:middle}
 </main>
 
 <script>
+let currentRole = null;
+
 // ── CLOCK ─────────────────────────────────────────────────────────────────────
 setInterval(()=>document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour12:false})+' LOCAL',1000);
 
@@ -1715,7 +1717,6 @@ async function saveEODHistory(){
 }
 
 // ── AUTH ─────────────────────────────────────────────────────────────────────
-let currentRole = null;
 
 const TAB_ROLES = {
   'evening':  'user',
