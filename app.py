@@ -33,7 +33,7 @@ except ImportError:
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.secret_key = os.environ.get('SECRET_KEY', 'dayedge-secret-key-2026-xK9mP2vL7n')
-app.config['SESSION_COOKIE_SECURE']      = False
+app.config['SESSION_COOKIE_SECURE']      = os.environ.get('RAILWAY_ENVIRONMENT') is not None
 app.config['SESSION_COOKIE_HTTPONLY']    = True
 app.config['SESSION_COOKIE_SAMESITE']   = 'Lax'
 app.config['SESSION_COOKIE_NAME']       = 'dayedge_session'
@@ -512,9 +512,11 @@ def do_login():
         'access':   ROLE_ACCESS[user['role']]
     })
 
-@app.route('/api/logout', methods=['POST'])
+@app.route('/api/logout', methods=['GET', 'POST'])
 def do_logout():
     session.clear()
+    if request.method == 'GET':
+        return redirect('/login')
     return jsonify({'ok': True})
 
 @app.route('/api/me')
