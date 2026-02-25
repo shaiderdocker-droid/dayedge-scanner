@@ -472,7 +472,7 @@ scheduler.start()
 def login_page():
     if 'username' in session:
         return redirect('/')
-    with open(os.path.join(os.path.dirname(__file__), 'static', 'login.html'), 'r') as f:
+    with open(os.path.join(os.path.dirname(__file__), 'login.html'), 'r') as f:
         return Response(f.read(), mimetype='text/html')
 
 @app.route('/api/login', methods=['POST'])
@@ -532,7 +532,7 @@ def me():
 @app.route('/')
 @login_required
 def index():
-    with open(os.path.join(os.path.dirname(__file__), 'static', 'index.html'), 'r') as f:
+    with open(os.path.join(os.path.dirname(__file__), 'index.html'), 'r') as f:
         return Response(f.read(), mimetype='text/html')
 
 @app.route('/api/scan')
