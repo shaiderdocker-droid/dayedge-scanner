@@ -384,9 +384,9 @@ td{padding:.85rem 1rem;vertical-align:middle}
     <span id="spyText">SPY —</span>
   </div>
   <div class="hdr-right">
-    <div class="user-pill" id="userPill" style="display:flex">
-      <span id="userPillName">—</span>
-      <span class="role-badge" id="userPillRole">—</span>
+    <div class="user-pill" id="userPill" style="display:flex;align-items:center;gap:.5rem">
+      <span id="userPillName" style="font-family:var(--mono);font-size:.65rem">—</span>
+      <span id="userPillRole" style="font-family:var(--mono);font-size:.6rem;padding:.1rem .4rem;border:1px solid;letter-spacing:.08em;text-transform:uppercase;color:var(--green);border-color:rgba(0,255,136,.4);background:rgba(0,255,136,.08)">—</span>
     </div>
     <button class="btn btn-logout" onclick="doLogout()" style="display:inline-block" id="logoutBtn">⏻ LOGOUT</button>
     <div class="mkt-badge neutral" id="mktBadge">MARKET: —</div>
@@ -1754,7 +1754,15 @@ async function checkAuth(){
     if(pillName) { pillName.textContent    = d.username; }
     if(pillRole) {
       pillRole.textContent = d.role.toUpperCase();
-      pillRole.className   = 'role-badge ' + (d.role === 'admin' ? 'role-admin' : 'role-user');
+      if(d.role === 'admin'){
+        pillRole.style.color       = 'var(--green)';
+        pillRole.style.borderColor = 'rgba(0,255,136,.4)';
+        pillRole.style.background  = 'rgba(0,255,136,.08)';
+      } else {
+        pillRole.style.color       = 'var(--blue)';
+        pillRole.style.borderColor = 'rgba(79,195,247,.4)';
+        pillRole.style.background  = 'rgba(79,195,247,.08)';
+      }
     }
     applyRoleAccess(d.role, d.username);
   }catch(e){
@@ -1772,7 +1780,15 @@ function applyRoleAccess(role, username){
   logoutBtn.style.display = 'inline-block';
   pillName.textContent = username;
   pillRole.textContent = role.toUpperCase();
-  pillRole.className = 'role-badge ' + (role === 'admin' ? 'role-admin' : 'role-user');
+  if(role === 'admin'){
+    pillRole.style.color       = 'var(--green)';
+    pillRole.style.borderColor = 'rgba(0,255,136,.4)';
+    pillRole.style.background  = 'rgba(0,255,136,.08)';
+  } else {
+    pillRole.style.color       = 'var(--blue)';
+    pillRole.style.borderColor = 'rgba(79,195,247,.4)';
+    pillRole.style.background  = 'rgba(79,195,247,.08)';
+  }
 
   // Lock tabs that this role cannot access
   if(role !== 'admin'){
