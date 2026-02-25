@@ -1734,36 +1734,25 @@ const TAB_ROLES = {
 async function checkAuth(){
   try{
     const r = await fetch('/api/me');
-    if(r.status === 401){
-      window.location.href = '/login';
-      return;
-    }
+    if(r.status === 401){ window.location.href = '/login'; return; }
     const d = await r.json();
-    if(!d.authenticated){
-      window.location.href = '/login';
-      return;
-    }
+    if(!d.authenticated){ window.location.href = '/login'; return; }
     currentRole = d.role;
-    // Always update pill directly here as a guarantee
-    const pill     = document.getElementById('userPill');
-    const pillName = document.getElementById('userPillName');
-    const pillRole = document.getElementById('userPillRole');
-    const logoutBtn= document.getElementById('logoutBtn');
-    if(pill)     { pill.style.display      = 'flex'; }
-    if(logoutBtn){ logoutBtn.style.display = 'inline-block'; }
-    if(pillName) { pillName.textContent    = d.username; }
-    if(pillRole) {
-      pillRole.textContent = d.role.toUpperCase();
-      if(d.role === 'admin'){
-        pillRole.style.color       = 'var(--green)';
-        pillRole.style.borderColor = 'rgba(0,255,136,.4)';
-        pillRole.style.background  = 'rgba(0,255,136,.08)';
-      } else {
-        pillRole.style.color       = 'var(--blue)';
-        pillRole.style.borderColor = 'rgba(79,195,247,.4)';
-        pillRole.style.background  = 'rgba(79,195,247,.08)';
-      }
-    }
+    // Directly write into the header pill
+    const isAdmin = (d.role === 'admin');
+    document.getElementById('userPillName').textContent = d.username;
+    const roleEl = document.getElementById('userPillRole');
+    roleEl.textContent              = isAdmin ? 'ADMIN' : 'USER';
+    roleEl.style.color              = isAdmin ? '#00ff88' : '#4fc3f7';
+    roleEl.style.borderColor        = isAdmin ? 'rgba(0,255,136,.4)' : 'rgba(79,195,247,.4)';
+    roleEl.style.background         = isAdmin ? 'rgba(0,255,136,.08)' : 'rgba(79,195,247,.08)';
+    roleEl.style.padding            = '.12rem .4rem';
+    roleEl.style.border             = '1px solid';
+    roleEl.style.fontSize           = '.6rem';
+    roleEl.style.letterSpacing      = '.08em';
+    roleEl.style.textTransform      = 'uppercase';
+    roleEl.style.fontFamily         = 'var(--mono)';
+    document.getElementById('logoutBtn').style.display = 'inline-block';
     applyRoleAccess(d.role, d.username);
   }catch(e){
     window.location.href = '/login';
