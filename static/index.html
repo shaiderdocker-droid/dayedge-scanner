@@ -972,7 +972,10 @@ function renderMorning(data){
   if(data.timestamp) document.getElementById('morningTime').textContent='Updated: '+new Date(data.timestamp).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
   const el=document.getElementById('goList');
   if(!data.golist||!data.golist.length){
-    el.innerHTML=`<div class="empty"><div class="empty-title">NO CONFIRMATIONS</div><div class="empty-sub">${data.message||'No stocks confirming pre-market strength'}</div></div>`;
+    const filterMsg = data.filter_message || data.message || 'No stocks confirming pre-market strength';
+    const spyTag = data.spy_condition ? `<span style="font-family:var(--mono);font-size:.6rem;padding:.15rem .5rem;border:1px solid;margin:0 .2rem;${data.spy_condition==='bullish'?'color:var(--green);border-color:rgba(0,255,136,.3)':data.spy_condition==='bearish'?'color:var(--red);border-color:rgba(255,68,102,.3)':'color:var(--yellow);border-color:rgba(255,209,102,.3)'}">SPY ${data.spy_condition.toUpperCase()}</span>` : '';
+    const qqqTag = data.qqq_condition ? `<span style="font-family:var(--mono);font-size:.6rem;padding:.15rem .5rem;border:1px solid;margin:0 .2rem;${data.qqq_condition==='bullish'?'color:var(--green);border-color:rgba(0,255,136,.3)':data.qqq_condition==='bearish'?'color:var(--red);border-color:rgba(255,68,102,.3)':'color:var(--yellow);border-color:rgba(255,209,102,.3)'}">QQQ ${data.qqq_condition.toUpperCase()}</span>` : '';
+    el.innerHTML=`<div class="empty"><div class="empty-title">NO CONFIRMATIONS</div><div style="margin:.5rem 0">${spyTag}${qqqTag}</div><div class="empty-sub">${filterMsg}</div></div>`;
     return;
   }
   el.innerHTML=data.golist.map(s=>{
