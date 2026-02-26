@@ -899,8 +899,8 @@ def run_morning_scan():
         sym = pick["symbol"]
         try:
             time.sleep(0.5)
-            ticker, df = safe_fetch(sym, period="60d")
-            if ticker is None or df is None or len(df) < 10: continue
+            ticker, df = safe_fetch(sym, period="14d")
+            if ticker is None or df is None or len(df) < 5: continue
 
             # ── Filter 1: Price range $5 to $200 ─────────────────────────────
             last_price = float(df['Close'].iloc[-1])
@@ -923,9 +923,11 @@ def run_morning_scan():
             if pm <= 0.3:
                 continue
 
-            # ── Filter 4: Minimum RVOL 1.5 ───────────────────────────────────
-            if rvol < 1.5:
-                print(f"  [MORNING] Skipping {sym} — RVOL {rvol:.2f} below 1.5")
+            # ── Filter 4: Minimum RVOL 1.2 ───────────────────────────────────
+            # Use first_15min_rvol if available — more accurate pre-market
+            effective_rvol = first_15_rvol if first_15_rvol and first_15_rvol > 1.0 else rvol
+            if effective_rvol < 1.2:
+                print(f"  [MORNING] Skipping {sym} — RVOL {effective_rvol:.2f} below 1.2")
                 continue
 
             # ── Filter 5: Skip if both SPY and QQQ are bearish ───────────────
@@ -949,9 +951,9 @@ def run_morning_scan():
                 print(f"  [MORNING] Skipping {sym} — gap {gap_pct:.1f}% is {gap_atr_ratio}x ATR (exhausted)")
                 continue
 
-            # ── Filter 8: Minimum pre-market volume 50k shares ───────────────
-            if pm_vol < 50000:
-                print(f"  [MORNING] Skipping {sym} — PM volume {pm_vol} below 50k")
+            # ── Filter 8: Minimum pre-market volume 10k shares ───────────────
+            if pm_vol < 10000:
+                print(f"  [MORNING] Skipping {sym} — PM volume {pm_vol} below 10k")
                 continue
 
             # ── Filter 9: Earnings within 2 days — skip ──────────────────────
@@ -992,7 +994,7 @@ def run_morning_scan():
                 "first_15min_rvol": first_15_rvol,
                 "has_catalyst": has_catalyst,
                 "vwap": vwap,
-                "rvol": round(rvol, 2),
+                "rvol": round(effective_rvol, 2),
                 "atr": round(atr_val, 2),
                 "gap_atr_ratio": gap_atr_ratio,
                 "gap_fill_prob": gap_fill_prob,
@@ -1012,11 +1014,31 @@ def run_morning_scan():
         return (catalyst_order, grade_order.get(x.get("grade","C"), 2), -x.get("pm_change", 0))
 
     golist.sort(key=morning_sort_key)
+
+    # Build summary of why stocks were filtered
+    total_picks = len(picks)
+    total_passed = len(golist)
+    if total_passed == 0:
+        from datetime import timezone
+        now_et = datetime.now()
+        hour_et = now_et.hour
+        if hour_et < 4 or hour_et >= 16:
+            filter_msg = "Outside pre-market hours (4am-9:30am ET) — no pre-market data available"
+        elif spy_condition == "bearish" and qqq_condition == "bearish":
+            filter_msg = "Both SPY and QQQ are bearish — all trades skipped to protect capital"
+        else:
+            filter_msg = f"Scanned {total_picks} evening picks — none passed all quality filters (RVOL, R/R, ATR, sector)"
+    else:
+        filter_msg = f"{total_passed} of {total_picks} evening picks passed all quality filters"
+
     out = {
         "timestamp": datetime.now().isoformat(),
         "golist": golist, "total_confirmed": len(golist),
         "best_window": get_best_trading_window(),
-        "personal_stats": get_personal_stats()
+        "personal_stats": get_personal_stats(),
+        "filter_message": filter_msg,
+        "spy_condition": spy_condition,
+        "qqq_condition": qqq_condition,
     }
     save_json(MORNING_FILE, out)
     print(f"Morning scan done. {len(golist)} confirmed.")
@@ -1038,8 +1060,8 @@ def run_scanner():
         try:
             print(f"[{i+1}/{len(DEFAULT_WATCHLIST)}] {sym}...")
             time.sleep(0.5)
-            ticker, df = safe_fetch(sym, period="60d")
-            if ticker is None or df is None or len(df) < 10: continue
+            ticker, df = safe_fetch(sym, period="14d")
+            if ticker is None or df is None or len(df) < 5: continue
             last = float(df['Close'].iloc[-1]); dv = calculate_dollar_volume(df)
             if dv < 5_000_000: continue
             # Hard filters — skip before expensive scoring
