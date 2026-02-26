@@ -837,6 +837,26 @@ def run_morning_scan():
     if not picks:
         return {"golist": [], "timestamp": datetime.now().isoformat(), "message": "No evening scan results found"}
     golist = []
+    # ── SPY market condition check ──────────────────────────────────────────
+    spy_condition = "unknown"
+    try:
+        spy_ticker = yf.Ticker("SPY")
+        spy_df = spy_ticker.history(period="1d", interval="5m")
+        if spy_df is not None and len(spy_df) >= 5:
+            spy_price = float(spy_df['Close'].iloc[-1])
+            spy_open  = float(spy_df['Open'].iloc[0])
+            spy_chg   = (spy_price - spy_open) / spy_open * 100
+            spy_vwap  = float((spy_df[['High','Low','Close']].mean(axis=1) * spy_df['Volume']).cumsum().iloc[-1] / spy_df['Volume'].cumsum().iloc[-1])
+            if spy_chg > 0.3 and spy_price > spy_vwap:
+                spy_condition = "bullish"
+            elif spy_chg < -0.3 and spy_price < spy_vwap:
+                spy_condition = "bearish"
+            else:
+                spy_condition = "neutral"
+            print(f"[MORNING] SPY condition: {spy_condition} ({spy_chg:+.2f}%)")
+    except Exception as e:
+        print(f"[MORNING] SPY check error: {e}")
+
     for pick in picks:
         sym = pick["symbol"]
         try:
@@ -846,17 +866,56 @@ def run_morning_scan():
             pm = get_premarket_change(ticker)
             pm_vol, pm_vol_pct = get_premarket_volume(ticker)
             first_15_rvol, first_15_vol = get_first_15min_rvol(ticker)
-            if pm > 0.3:
-                tl = calculate_trade_levels(df)
-                golist.append({
-                    "symbol": sym, "evening_score": pick["score"], "grade": pick["grade"],
-                    "prev_close": pick["last_close"], "pm_change": pm,
-                    "pm_volume": pm_vol, "pm_vol_pct": pm_vol_pct,
-                    "first_15min_rvol": first_15_rvol,
-                    "trade_levels": tl, "best_window": get_best_trading_window()
-                })
+
+            # ── Filter 1: Minimum PM change ──────────────────────────────────
+            if pm <= 0.3:
+                continue
+
+            # ── Filter 2: Skip if SPY is bearish (protect longs) ────────────
+            if spy_condition == "bearish":
+                print(f"  [MORNING] Skipping {sym} — SPY bearish")
+                continue
+
+            tl = calculate_trade_levels(df)
+
+            # ── Filter 3: Minimum R/R ratio of 2.0 ──────────────────────────
+            rr = tl.get("rr_ratio", 0) if tl else 0
+            if rr and float(rr) < 2.0:
+                print(f"  [MORNING] Skipping {sym} — R/R {rr} below 2.0")
+                continue
+
+            # ── Calculate VWAP for trade reference ───────────────────────────
+            vwap = None
+            try:
+                intra = ticker.history(period="1d", interval="5m")
+                if intra is not None and len(intra) > 0:
+                    typical = intra[['High','Low','Close']].mean(axis=1)
+                    vwap = round(float((typical * intra['Volume']).cumsum().iloc[-1] / intra['Volume'].cumsum().iloc[-1]), 2)
+            except:
+                pass
+
+            # ── Check for catalyst ───────────────────────────────────────────
+            has_catalyst = pick.get("has_catalyst", False)
+
+            golist.append({
+                "symbol": sym, "evening_score": pick["score"], "grade": pick["grade"],
+                "prev_close": pick["last_close"], "pm_change": pm,
+                "pm_volume": pm_vol, "pm_vol_pct": pm_vol_pct,
+                "first_15min_rvol": first_15_rvol,
+                "has_catalyst": has_catalyst,
+                "vwap": vwap,
+                "spy_condition": spy_condition,
+                "trade_levels": tl, "best_window": get_best_trading_window()
+            })
         except Exception as e: print(f"  Morning error {sym}: {e}")
-    golist.sort(key=lambda x: x["pm_change"], reverse=True)
+
+    # Sort: catalyst stocks first, then by grade, then by pm_change
+    def morning_sort_key(x):
+        grade_order = {"A": 0, "B": 1, "C": 2}
+        catalyst_order = 0 if x.get("has_catalyst") else 1
+        return (catalyst_order, grade_order.get(x.get("grade","C"), 2), -x.get("pm_change", 0))
+
+    golist.sort(key=morning_sort_key)
     out = {
         "timestamp": datetime.now().isoformat(),
         "golist": golist, "total_confirmed": len(golist),
