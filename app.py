@@ -1561,19 +1561,32 @@ def get_chart_data(symbol):
             company_name = symbol
             prev_close   = 0
 
+        import math
+
+        def safe(val, fallback=0.0):
+            try:
+                v = float(val)
+                return fallback if math.isnan(v) or math.isinf(v) else round(v, 2)
+            except:
+                return fallback
+
         candles = []
         for i, (ts, row) in enumerate(df.iterrows()):
             try:
+                c_price = safe(row['Close'])
+                vwap_val = safe(vwap_series.iloc[i], c_price)
+                ema9_val = safe(ema9.iloc[i], c_price)
+                ema20_val = safe(ema20.iloc[i], c_price)
                 candles.append({
                     't':    int(ts.timestamp() * 1000),
-                    'o':    round(float(row['Open']),  2),
-                    'h':    round(float(row['High']),  2),
-                    'l':    round(float(row['Low']),   2),
-                    'c':    round(float(row['Close']), 2),
-                    'v':    int(row['Volume']),
-                    'vwap': round(float(vwap_series.iloc[i]), 2),
-                    'ema9': round(float(ema9.iloc[i]),  2),
-                    'ema20':round(float(ema20.iloc[i]), 2),
+                    'o':    safe(row['Open']),
+                    'h':    safe(row['High']),
+                    'l':    safe(row['Low']),
+                    'c':    c_price,
+                    'v':    int(row['Volume']) if not math.isnan(float(row['Volume'])) else 0,
+                    'vwap': vwap_val,
+                    'ema9': ema9_val,
+                    'ema20':ema20_val,
                 })
             except:
                 continue
