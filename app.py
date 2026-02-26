@@ -1520,6 +1520,89 @@ def debug_auth():
         'session_user':     session.get('username', None),
     })
 
+@app.route('/api/chart/<symbol>')
+@login_required
+def get_chart_data(symbol):
+    """Return OHLCV intraday data for charting with VWAP + EMAs."""
+    try:
+        interval = request.args.get('interval', '5m')
+        period   = request.args.get('period', '1d')
+
+        # Validate interval
+        valid_intervals = ['5m', '15m', '1h']
+        if interval not in valid_intervals:
+            interval = '5m'
+
+        symbol = symbol.upper().strip()
+        ticker = yf.Ticker(symbol)
+
+        # Fetch with prepost for pre-market data
+        df = ticker.history(period=period, interval=interval, prepost=True)
+
+        if df is None or len(df) == 0:
+            return jsonify({'error': f'No data found for {symbol}'}), 404
+
+        # Calculate VWAP
+        typical = (df['High'] + df['Low'] + df['Close']) / 3
+        cum_tpv  = (typical * df['Volume']).cumsum()
+        cum_vol  = df['Volume'].cumsum()
+        vwap_series = (cum_tpv / cum_vol.replace(0, float('nan'))).fillna(method='ffill')
+
+        # Calculate EMA9 and EMA20
+        ema9  = df['Close'].ewm(span=9,  adjust=False).mean()
+        ema20 = df['Close'].ewm(span=20, adjust=False).mean()
+
+        # Get ticker info for additional context
+        try:
+            info = ticker.info
+            company_name = info.get('shortName', symbol)
+            prev_close   = round(float(info.get('previousClose', 0) or 0), 2)
+        except:
+            company_name = symbol
+            prev_close   = 0
+
+        candles = []
+        for i, (ts, row) in enumerate(df.iterrows()):
+            try:
+                candles.append({
+                    't':    int(ts.timestamp() * 1000),
+                    'o':    round(float(row['Open']),  2),
+                    'h':    round(float(row['High']),  2),
+                    'l':    round(float(row['Low']),   2),
+                    'c':    round(float(row['Close']), 2),
+                    'v':    int(row['Volume']),
+                    'vwap': round(float(vwap_series.iloc[i]), 2),
+                    'ema9': round(float(ema9.iloc[i]),  2),
+                    'ema20':round(float(ema20.iloc[i]), 2),
+                })
+            except:
+                continue
+
+        if not candles:
+            return jsonify({'error': 'Could not process candle data'}), 404
+
+        last = candles[-1]
+        change     = round(last['c'] - candles[0]['o'], 2)
+        change_pct = round((change / candles[0]['o']) * 100, 2) if candles[0]['o'] else 0
+
+        return jsonify({
+            'symbol':      symbol,
+            'name':        company_name,
+            'interval':    interval,
+            'candles':     candles,
+            'prev_close':  prev_close,
+            'last_price':  last['c'],
+            'last_vwap':   last['vwap'],
+            'last_ema9':   last['ema9'],
+            'last_ema20':  last['ema20'],
+            'change':      change,
+            'change_pct':  change_pct,
+            'above_vwap':  last['c'] > last['vwap'],
+            'timestamp':   datetime.now().isoformat(),
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/status')
 def status():
     return jsonify({
