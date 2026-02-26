@@ -857,34 +857,116 @@ def run_morning_scan():
     except Exception as e:
         print(f"[MORNING] SPY check error: {e}")
 
+    # ── QQQ condition check ──────────────────────────────────────────────────
+    qqq_condition = "unknown"
+    try:
+        qqq_ticker = yf.Ticker("QQQ")
+        qqq_df = qqq_ticker.history(period="1d", interval="5m")
+        if qqq_df is not None and len(qqq_df) >= 5:
+            qqq_price = float(qqq_df['Close'].iloc[-1])
+            qqq_open  = float(qqq_df['Open'].iloc[0])
+            qqq_chg   = (qqq_price - qqq_open) / qqq_open * 100
+            qqq_vwap  = float((qqq_df[['High','Low','Close']].mean(axis=1) * qqq_df['Volume']).cumsum().iloc[-1] / qqq_df['Volume'].cumsum().iloc[-1])
+            if qqq_chg > 0.3 and qqq_price > qqq_vwap:
+                qqq_condition = "bullish"
+            elif qqq_chg < -0.3 and qqq_price < qqq_vwap:
+                qqq_condition = "bearish"
+            else:
+                qqq_condition = "neutral"
+            print(f"[MORNING] QQQ condition: {qqq_condition} ({qqq_chg:+.2f}%)")
+    except Exception as e:
+        print(f"[MORNING] QQQ check error: {e}")
+
+    # ── Sector ETF momentum cache ─────────────────────────────────────────────
+    sector_momentum = {}
+    try:
+        for etf in ["XLK","XLF","XLV","XLE","XLI","XLY","XLP","XLU","XLB","XLRE","XBI","IBB","SMH","ARKK","GLD","USO"]:
+            try:
+                etf_ticker = yf.Ticker(etf)
+                etf_df = etf_ticker.history(period="1d", interval="5m")
+                if etf_df is not None and len(etf_df) >= 3:
+                    etf_price = float(etf_df['Close'].iloc[-1])
+                    etf_open  = float(etf_df['Open'].iloc[0])
+                    etf_chg   = (etf_price - etf_open) / etf_open * 100
+                    sector_momentum[etf] = "green" if etf_chg > 0.1 else "red" if etf_chg < -0.1 else "neutral"
+            except:
+                sector_momentum[etf] = "neutral"
+        print(f"[MORNING] Sector momentum loaded: {len(sector_momentum)} ETFs")
+    except Exception as e:
+        print(f"[MORNING] Sector momentum error: {e}")
+
     for pick in picks:
         sym = pick["symbol"]
         try:
             time.sleep(0.5)
-            ticker, df = safe_fetch(sym, period="5d")
-            if ticker is None or df is None: continue
+            ticker, df = safe_fetch(sym, period="60d")
+            if ticker is None or df is None or len(df) < 10: continue
+
+            # ── Filter 1: Price range $5 to $200 ─────────────────────────────
+            last_price = float(df['Close'].iloc[-1])
+            if last_price < 5 or last_price > 200:
+                print(f"  [MORNING] Skipping {sym} — price ${last_price:.2f} outside $5-$200 range")
+                continue
+
+            # ── Filter 2: Minimum ATR $0.50 ──────────────────────────────────
+            atr_val = calculate_atr(df)
+            if atr_val < 0.50:
+                print(f"  [MORNING] Skipping {sym} — ATR ${atr_val:.2f} below $0.50")
+                continue
+
             pm = get_premarket_change(ticker)
             pm_vol, pm_vol_pct = get_premarket_volume(ticker)
             first_15_rvol, first_15_vol = get_first_15min_rvol(ticker)
+            rvol = calculate_relative_volume(df)
 
-            # ── Filter 1: Minimum PM change ──────────────────────────────────
+            # ── Filter 3: Minimum PM change 0.3% ─────────────────────────────
             if pm <= 0.3:
                 continue
 
-            # ── Filter 2: Skip if SPY is bearish (protect longs) ────────────
-            if spy_condition == "bearish":
-                print(f"  [MORNING] Skipping {sym} — SPY bearish")
+            # ── Filter 4: Minimum RVOL 1.5 ───────────────────────────────────
+            if rvol < 1.5:
+                print(f"  [MORNING] Skipping {sym} — RVOL {rvol:.2f} below 1.5")
+                continue
+
+            # ── Filter 5: Skip if both SPY and QQQ are bearish ───────────────
+            if spy_condition == "bearish" and qqq_condition == "bearish":
+                print(f"  [MORNING] Skipping {sym} — both SPY and QQQ bearish")
                 continue
 
             tl = calculate_trade_levels(df)
 
-            # ── Filter 3: Minimum R/R ratio of 2.0 ──────────────────────────
+            # ── Filter 6: Minimum R/R ratio of 2.0 ───────────────────────────
             rr = tl.get("rr_ratio", 0) if tl else 0
             if rr and float(rr) < 2.0:
                 print(f"  [MORNING] Skipping {sym} — R/R {rr} below 2.0")
                 continue
 
-            # ── Calculate VWAP for trade reference ───────────────────────────
+            # ── Filter 7: Gap vs ATR — skip if gap already > 2.5x ATR ────────
+            gap_pct = calculate_gap_percent(df)
+            atr_pct = calculate_atr_percent(df)
+            gap_atr_ratio = round(abs(gap_pct) / atr_pct, 2) if atr_pct > 0 else 0
+            if gap_atr_ratio > 2.5:
+                print(f"  [MORNING] Skipping {sym} — gap {gap_pct:.1f}% is {gap_atr_ratio}x ATR (exhausted)")
+                continue
+
+            # ── Filter 8: Minimum pre-market volume 50k shares ───────────────
+            if pm_vol < 50000:
+                print(f"  [MORNING] Skipping {sym} — PM volume {pm_vol} below 50k")
+                continue
+
+            # ── Filter 9: Earnings within 2 days — skip ──────────────────────
+            earnings_risky, days_earn = get_earnings_risk(ticker)
+            if earnings_risky and days_earn is not None and days_earn <= 2:
+                print(f"  [MORNING] Skipping {sym} — earnings in {days_earn} days")
+                continue
+
+            # ── Filter 10: Sector ETF must not be red ────────────────────────
+            stock_sector = pick.get("sector_etf", "")
+            if stock_sector and sector_momentum.get(stock_sector) == "red":
+                print(f"  [MORNING] Skipping {sym} — sector {stock_sector} is red")
+                continue
+
+            # ── Calculate VWAP for trade reference ────────────────────────────
             vwap = None
             try:
                 intra = ticker.history(period="1d", interval="5m")
@@ -894,8 +976,14 @@ def run_morning_scan():
             except:
                 pass
 
-            # ── Check for catalyst ───────────────────────────────────────────
+            # ── Check for catalyst ────────────────────────────────────────────
             has_catalyst = pick.get("has_catalyst", False)
+
+            # ── Historical gap performance for this stock ─────────────────────
+            gap_history = get_gap_fill_risk(sym, gap_pct)
+            gap_fill_prob = gap_history[0] if gap_history else 0
+
+            print(f"  [MORNING] ✅ {sym} passed all filters — PM:{pm:+.1f}% RVOL:{rvol:.1f}x R/R:{rr} ATR:${atr_val:.2f}")
 
             golist.append({
                 "symbol": sym, "evening_score": pick["score"], "grade": pick["grade"],
@@ -904,7 +992,15 @@ def run_morning_scan():
                 "first_15min_rvol": first_15_rvol,
                 "has_catalyst": has_catalyst,
                 "vwap": vwap,
+                "rvol": round(rvol, 2),
+                "atr": round(atr_val, 2),
+                "gap_atr_ratio": gap_atr_ratio,
+                "gap_fill_prob": gap_fill_prob,
+                "sector_etf": stock_sector,
+                "sector_momentum": sector_momentum.get(stock_sector, "unknown"),
+                "earnings_days": days_earn,
                 "spy_condition": spy_condition,
+                "qqq_condition": qqq_condition,
                 "trade_levels": tl, "best_window": get_best_trading_window()
             })
         except Exception as e: print(f"  Morning error {sym}: {e}")
@@ -946,6 +1042,10 @@ def run_scanner():
             if ticker is None or df is None or len(df) < 10: continue
             last = float(df['Close'].iloc[-1]); dv = calculate_dollar_volume(df)
             if dv < 5_000_000: continue
+            # Hard filters — skip before expensive scoring
+            if last < 5 or last > 500: continue        # price range
+            atr_dollar = calculate_atr(df)
+            if atr_dollar < 0.30: continue             # minimum ATR $0.30 for evening (looser than morning)
 
             float_score, float_m = get_float_score(ticker)
             earnings_risky, days_earn = get_earnings_risk(ticker)
@@ -1105,18 +1205,20 @@ def score_stock_v4(features, ml_adj=0):
     if leader >= 2: score += 2; reasons.append("⭐ Sector leader — strongest in hot sector!")
     elif leader == 1: score += 1; reasons.append("🔹 Outperforming sector peers")
 
-    if sentiment >= 2: score += 2; reasons.append("✅ Strongly bullish news sentiment")
+    if sentiment >= 3: score += 3; reasons.append("✅ Very strong bullish catalyst (FDA/earnings/acquisition)")
+    elif sentiment >= 2: score += 2; reasons.append("✅ Strongly bullish news sentiment")
     elif sentiment == 1: score += 1; reasons.append("🔹 Positive news sentiment")
     elif cat and sentiment == 0: score += 1; reasons.append("✅ News catalyst detected")
     elif sentiment <= -2: score -= 2; reasons.append("🔴 Bearish news sentiment")
     elif sentiment == -1: score -= 1; reasons.append("⚠️ Slightly negative news")
+    if not cat: score -= 1; reasons.append("⚠️ No catalyst — gap fade risk higher")
 
     if uo: score += 1; reasons.append("✅ Unusual options activity")
 
     if earn and reliable_gapper:
         score += 1; reasons.append("✅ Earnings risk BUT historically gaps up big")
     elif earn:
-        score -= 3; reasons.append("🔴 EARNINGS WITHIN 3 DAYS — high risk")
+        score -= 4; reasons.append("🔴 EARNINGS WITHIN 3 DAYS — high risk, avoid")
 
     score += spy
     if spy > 0: reasons.append("✅ Market bullish (SPY)")
@@ -1140,8 +1242,10 @@ def score_stock_v4(features, ml_adj=0):
     if last < 5: score -= 2; reasons.append("🔴 Price under $5")
     elif last > 500: reasons.append("ℹ️ High price — size accordingly")
     if rr is not None:
-        if rr >= 2: score += 1; reasons.append(f"✅ Good R/R ({rr}:1)")
-        elif rr < 1: score -= 1; reasons.append(f"⚠️ Poor R/R ({rr}:1)")
+        if rr >= 3: score += 2; reasons.append(f"✅ Excellent R/R ({rr}:1)")
+        elif rr >= 2: score += 1; reasons.append(f"✅ Good R/R ({rr}:1)")
+        elif rr >= 1: reasons.append(f"🔹 Acceptable R/R ({rr}:1)")
+        elif rr < 1: score -= 2; reasons.append(f"🔴 Poor R/R ({rr}:1) — risk not justified")
 
     if ml_adj != 0:
         pts = round(ml_adj * 2); score += pts
