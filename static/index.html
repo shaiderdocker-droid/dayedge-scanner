@@ -383,6 +383,10 @@ td{padding:.85rem 1rem;vertical-align:middle}
     <span id="spyDot" style="width:7px;height:7px;border-radius:50%;background:var(--yellow);animation:pulse 2s infinite;flex-shrink:0"></span>
     <span id="spyText">SPY —</span>
   </div>
+  <div id="qqqPill" class="spy-pill spy-neut" style="font-family:var(--mono);font-size:.68rem;padding:.25rem .7rem;border:1px solid;letter-spacing:.08em;display:flex;align-items:center;gap:.5rem;color:var(--yellow);border-color:rgba(255,209,102,.4);background:rgba(255,209,102,.07)">
+    <span id="qqqDot" style="width:7px;height:7px;border-radius:50%;background:var(--yellow);animation:pulse 2s infinite;flex-shrink:0"></span>
+    <span id="qqqText">QQQ —</span>
+  </div>
   <div class="hdr-right">
     <div class="user-pill" id="userPill" style="display:flex;align-items:center;gap:.5rem">
       <span id="userPillName" style="font-family:var(--mono);font-size:.65rem">—</span>
@@ -889,7 +893,13 @@ function renderMain(data){
     return;
   }
   tbody.innerHTML='';
-  data.results.forEach(s=>{
+  const gradeOrder = {'A':0,'B':1,'C':2};
+  const sortedResults = [...data.results].sort((a,b)=>{
+    const gradeDiff = (gradeOrder[a.grade]||3) - (gradeOrder[b.grade]||3);
+    if(gradeDiff !== 0) return gradeDiff;
+    return (b.score||0) - (a.score||0);
+  });
+  sortedResults.forEach(s=>{
     const gapC=s.gap_pct>0?'pos':s.gap_pct<0?'neg':'neut';
     const pmC=s.pm_change>0?'pos':s.pm_change<0?'neg':'dim';
     const sp=Math.min((s.score/10)*100,100);
@@ -967,8 +977,21 @@ function renderMorning(data){
   }
   el.innerHTML=data.golist.map(s=>{
     const tl=s.trade_levels;
+    const catalystBadge = s.has_catalyst
+      ? '<span style="font-family:var(--mono);font-size:.55rem;padding:.1rem .35rem;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.3);color:var(--green);letter-spacing:.06em">⚡ CATALYST</span>'
+      : '<span style="font-family:var(--mono);font-size:.55rem;padding:.1rem .35rem;background:rgba(255,68,102,.07);border:1px solid rgba(255,68,102,.2);color:var(--tdim);letter-spacing:.06em">NO CATALYST</span>';
+    const vwapBadge = s.vwap
+      ? `<span style="font-family:var(--mono);font-size:.55rem;color:var(--tdim)">VWAP <span style="color:var(--blue)">$${s.vwap}</span></span>`
+      : '';
+    const spyC = s.spy_condition;
+    const spyBadge = spyC
+      ? `<span style="font-family:var(--mono);font-size:.55rem;padding:.1rem .35rem;border:1px solid;letter-spacing:.06em;${spyC==='bullish'?'color:var(--green);border-color:rgba(0,255,136,.3);background:rgba(0,255,136,.07)':spyC==='bearish'?'color:var(--red);border-color:rgba(255,68,102,.3);background:rgba(255,68,102,.07)':'color:var(--yellow);border-color:rgba(255,209,102,.3);background:rgba(255,209,102,.07)'}">SPY ${spyC.toUpperCase()}</span>`
+      : '';
     return `<div class="go-card">
-      <div class="go-sym">${s.symbol} <span class="grade grade-${s.grade}" style="vertical-align:middle">${s.grade}</span></div>
+      <div class="go-sym" style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
+        ${s.symbol} <span class="grade grade-${s.grade}" style="vertical-align:middle">${s.grade}</span>
+        ${catalystBadge} ${spyBadge} ${vwapBadge}
+      </div>
       <div class="go-grid">
         <div class="go-item"><label>Pre-Market</label><span style="color:${s.pm_change>0?'var(--green)':'var(--red)'}">${s.pm_change>0?'+':''}${s.pm_change}%</span></div>
         <div class="go-item"><label>Evening Score</label><span style="color:var(--blue)">${s.evening_score}/10</span></div>
@@ -981,6 +1004,7 @@ function renderMorning(data){
         <div class="go-lvl-row"><span style="color:var(--tdim)">Stop</span><span style="color:var(--red)">$${tl.stop} (${tl.stop_pct}%)</span></div>
         <div class="go-lvl-row"><span style="color:var(--tdim)">T1</span><span style="color:var(--green)">$${tl.target1}</span></div>
         <div class="go-lvl-row"><span style="color:var(--tdim)">T2</span><span style="color:var(--yellow)">$${tl.target2}</span></div>
+        ${tl.rr_ratio?`<div class="go-lvl-row"><span style="color:var(--tdim)">R/R</span><span style="color:${parseFloat(tl.rr_ratio)>=2?'var(--green)':parseFloat(tl.rr_ratio)>=1?'var(--yellow)':'var(--red)'}">${tl.rr_ratio}:1</span></div>`:''}
         <div class="go-lvl-row"><span style="color:var(--tdim)">T3</span><span style="color:var(--orange)">$${tl.target3}</span></div>
       </div>`:''}
       <div class="traded-toggle" id="tgl-${s.symbol}">
@@ -1393,24 +1417,44 @@ function renderEOD(data){
 
 
 // ── SPY LIVE CONDITION ────────────────────────────────────────────────────────
+function updateIndexPill(symbol, data, pillId, dotId, txtId){
+  if(!data) return;
+  const pill = document.getElementById(pillId);
+  const dot  = document.getElementById(dotId);
+  const txt  = document.getElementById(txtId);
+  if(!pill || !dot || !txt) return;
+
+  const s = data.status;
+  const isOpen = data.market_open;
+
+  // Colors
+  const color   = s==='bullish'?'var(--green)':s==='bearish'?'var(--red)':s==='closed'?'var(--tdim)':'var(--yellow)';
+  const borderC = s==='bullish'?'rgba(0,255,136,.4)':s==='bearish'?'rgba(255,68,102,.4)':s==='closed'?'rgba(150,150,150,.3)':'rgba(255,209,102,.4)';
+  const bgC     = s==='bullish'?'rgba(0,255,136,.07)':s==='bearish'?'rgba(255,68,102,.07)':s==='closed'?'rgba(150,150,150,.05)':'rgba(255,209,102,.07)';
+
+  pill.style.color       = color;
+  pill.style.borderColor = borderC;
+  pill.style.background  = bgC;
+  dot.style.background   = color;
+  dot.style.animation    = isOpen ? 'pulse 2s infinite' : 'none';
+
+  if(s === 'closed'){
+    txt.textContent = `${symbol} CLOSED`;
+  } else if(data.price && data.change_pct !== undefined){
+    const sign = data.change_pct >= 0 ? '+' : '';
+    const label = s === 'bullish' ? '▲' : s === 'bearish' ? '▼' : '◆';
+    txt.textContent = `${symbol} ${label} $${data.price} ${sign}${data.change_pct}%`;
+  } else {
+    txt.textContent = `${symbol} ${s.toUpperCase()}`;
+  }
+}
+
 async function loadSPY(){
   try{
     const r = await fetch('/api/spy-condition');
     const d = await r.json();
-    const pill = document.getElementById('spyPill');
-    const dot  = document.getElementById('spyDot');
-    const txt  = document.getElementById('spyText');
-    const cls  = d.status==='bullish'?'spy-bull':d.status==='bearish'?'spy-bear':'spy-neut';
-    pill.className = 'spy-pill ' + cls;
-    if(d.price && d.change_pct !== undefined){
-      const sign = d.change_pct>=0?'+':'';
-      txt.textContent = `SPY $${d.price} ${sign}${d.change_pct}%`;
-    } else {
-      // Outside market hours — show status only
-      const label = d.status==='bullish'?'BULLISH':d.status==='bearish'?'BEARISH':d.status==='unknown'?'CLOSED':'NEUTRAL';
-      txt.textContent = `SPY ${label}`;
-    }
-    dot.style.background = d.status==='bullish'?'var(--green)':d.status==='bearish'?'var(--red)':'var(--yellow)';
+    updateIndexPill('SPY', d.spy, 'spyPill', 'spyDot', 'spyText');
+    updateIndexPill('QQQ', d.qqq, 'qqqPill', 'qqqDot', 'qqqText');
   }catch(e){}
 }
 if(typeof currentRole === 'undefined' || currentRole === 'admin'){
