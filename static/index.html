@@ -31,6 +31,22 @@ header{background:var(--panel);border-bottom:1px solid var(--border2);padding:0 
 .btn-logout{border-color:var(--red)!important;color:var(--red)!important}
 .btn-logout:hover{background:rgba(255,68,102,.08)!important}
 .tab-locked{opacity:.3;cursor:not-allowed!important;pointer-events:none}
+.tab-chart{color:var(--green) !important}
+.tab-chart.active{color:var(--green) !important;border-bottom-color:var(--green) !important}
+.chart-wrap{background:var(--panel);border:1px solid var(--border);padding:1rem;margin-bottom:1.5rem}
+.chart-hdr{display:flex;align-items:center;gap:1rem;margin-bottom:.75rem;flex-wrap:wrap}
+.chart-sym-label{font-family:var(--disp);font-size:1.3rem;font-weight:800;color:var(--tbright)}
+.tf-btn{font-family:var(--mono);font-size:.6rem;padding:.2rem .55rem;border:1px solid var(--border);background:transparent;color:var(--tdim);cursor:pointer;letter-spacing:.08em}
+.tf-btn.active{border-color:var(--green);color:var(--green);background:rgba(0,255,136,.08)}
+.chart-search-row{display:flex;gap:.5rem;margin-bottom:1rem;align-items:center;flex-wrap:wrap}
+.chart-input{background:var(--panel2);border:1px solid var(--border);color:var(--tbright);font-family:var(--mono);font-size:.75rem;padding:.4rem .8rem;width:110px;text-transform:uppercase;letter-spacing:.08em}
+.chart-input:focus{outline:none;border-color:var(--green)}
+.quick-sym-btn{font-family:var(--mono);font-size:.58rem;padding:.2rem .5rem;border:1px solid var(--border);background:transparent;color:var(--tdim);cursor:pointer}
+.quick-sym-btn:hover{border-color:var(--green);color:var(--green)}
+.chart-stats-row{display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:.5rem}
+.cstat{font-family:var(--mono);font-size:.65rem}
+.cstat-l{color:var(--tdim);font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;display:block}
+.cstat-v{font-size:.78rem;font-weight:700}
 .hdr-right{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
 .mkt-badge{font-family:var(--mono);font-size:.7rem;padding:.3rem .8rem;letter-spacing:.1em;text-transform:uppercase;border:1px solid}
 .bullish{color:var(--green);border-color:var(--green);background:rgba(0,255,136,.08)}
@@ -435,6 +451,7 @@ td{padding:.85rem 1rem;vertical-align:middle}
     <div class="tab tab-risk" onclick="switchTab('risk',this);loadRisk()">⚠ RISK</div>
     <div class="tab tab-pattern" onclick="switchTab('pattern',this);loadPatterns()">🔍 PATTERNS</div>
     <div class="tab tab-journal" onclick="switchTab('journal',this);loadJournal()">📓 JOURNAL</div>
+    <div class="tab tab-chart" onclick="switchTab('chart',this);initChartTab()">📈 CHARTS</div>
   </div>
 
   <!-- ─── EVENING TAB ──────────────────────────────────────────── -->
@@ -716,6 +733,41 @@ td{padding:.85rem 1rem;vertical-align:middle}
   </div>
 
 
+  <!-- ─── CHART TAB ──────────────────────────────────────────────────── -->
+  <div class="tab-content" id="tab-chart">
+    <div class="section-hdr">
+      <div class="section-title" style="color:var(--green)">📈 Intraday Charts</div>
+      <div class="section-sub">Live candlestick chart with VWAP · EMA9 · EMA20 · Volume — updates every 60 seconds</div>
+    </div>
+    <div class="chart-search-row">
+      <input class="chart-input" id="chartSymInput" placeholder="TICKER" maxlength="6" onkeydown="if(event.key==='Enter')loadChart(document.getElementById('chartSymInput').value)">
+      <button class="btn btn-green" onclick="loadChart(document.getElementById('chartSymInput').value)" style="font-size:.7rem;padding:.35rem .8rem">LOAD CHART</button>
+      <div id="chartQuickSyms" class="chart-search-row" style="gap:.3rem;margin:0"></div>
+    </div>
+    <div class="chart-wrap" id="chartWrap" style="display:none">
+      <div class="chart-hdr">
+        <span class="chart-sym-label" id="chartSymLabel">—</span>
+        <div style="display:flex;gap:.3rem">
+          <button class="tf-btn active" id="tf5m" onclick="setChartTF('5m',this)">5M</button>
+          <button class="tf-btn" id="tf15m" onclick="setChartTF('15m',this)">15M</button>
+          <button class="tf-btn" id="tf1h" onclick="setChartTF('1h',this)">1H</button>
+        </div>
+        <button class="btn" onclick="loadChart(currentChartSym)" style="font-size:.6rem;padding:.2rem .5rem">↻ REFRESH</button>
+        <span id="chartUpdateTime" style="font-family:var(--mono);font-size:.58rem;color:var(--tdim)"></span>
+      </div>
+      <div class="chart-stats-row" id="chartStatsRow"></div>
+      <canvas id="chartCanvas" style="width:100%;display:block"></canvas>
+      <canvas id="chartVolCanvas" style="width:100%;display:block;margin-top:4px"></canvas>
+      <div style="display:flex;gap:1.5rem;margin-top:.5rem;flex-wrap:wrap">
+        <span style="font-family:var(--mono);font-size:.58rem;color:var(--tdim)"><span style="color:#00ff88">━</span> VWAP</span>
+        <span style="font-family:var(--mono);font-size:.58rem;color:var(--tdim)"><span style="color:#4fc3f7">━</span> EMA9</span>
+        <span style="font-family:var(--mono);font-size:.58rem;color:var(--tdim)"><span style="color:#ff9800">━</span> EMA20</span>
+        <span style="font-family:var(--mono);font-size:.58rem;color:var(--tdim)"><span style="color:#00bcd4">█</span> Up &nbsp;<span style="color:#ff4466">█</span> Down</span>
+      </div>
+    </div>
+    <div id="chartEmpty" style="text-align:center;padding:3rem;font-family:var(--mono);font-size:.75rem;color:var(--tdim)">Enter a ticker above or click a stock from your morning go-list to view its chart</div>
+  </div>
+
   <!-- ─── LIVE TRACKER TAB ──────────────────────────────────────── -->
   <div class="tab-content" id="tab-live">
     <div class="section-hdr">
@@ -815,6 +867,7 @@ const ROLES = {
   'live':     'user',
   'pm':       'user',
   'risk':     'user',
+  'chart':    'user',
   'eod':      'admin',
   'pattern':  'admin',
   'journal':  'admin',
@@ -992,7 +1045,7 @@ function renderMorning(data){
       : '';
     return `<div class="go-card">
       <div class="go-sym" style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
-        ${s.symbol} <span class="grade grade-${s.grade}" style="vertical-align:middle">${s.grade}</span>
+        <span style="cursor:pointer;text-decoration:underline dotted;color:var(--green)" onclick="openChartForSym('${s.symbol}')" title="View chart">${s.symbol}</span> <span class="grade grade-${s.grade}" style="vertical-align:middle">${s.grade}</span>
         ${catalystBadge} ${spyBadge} ${vwapBadge}
         ${s.earnings_days!==null&&s.earnings_days!==undefined&&s.earnings_days<=5?`<span style="font-family:var(--mono);font-size:.55rem;padding:.1rem .35rem;background:rgba(255,209,102,.1);border:1px solid rgba(255,209,102,.3);color:var(--yellow);letter-spacing:.06em">⚠️ EARN ${s.earnings_days}D</span>`:''}
         ${s.qqq_condition?`<span style="font-family:var(--mono);font-size:.55rem;padding:.1rem .35rem;border:1px solid;letter-spacing:.06em;${s.qqq_condition==='bullish'?'color:var(--green);border-color:rgba(0,255,136,.3);background:rgba(0,255,136,.07)':s.qqq_condition==='bearish'?'color:var(--red);border-color:rgba(255,68,102,.3);background:rgba(255,68,102,.07)':'color:var(--yellow);border-color:rgba(255,209,102,.3);background:rgba(255,209,102,.07)'}">QQQ ${s.qqq_condition.toUpperCase()}</span>`:''}
@@ -1971,6 +2024,238 @@ async function syncToSheets(){
     btn.disabled = false;
     btn.innerHTML = '<span style="margin-right:.3rem">📊</span> SYNC TO SHEETS';
   }
+}
+
+
+// ── CHART TAB ─────────────────────────────────────────────────────────────────
+let currentChartSym = null;
+let currentChartTF  = '5m';
+let chartInterval   = null;
+let chartData       = null;
+
+function initChartTab(){
+  // Populate quick symbols from morning go-list
+  const qEl = document.getElementById('chartQuickSyms');
+  if(qEl && chartData === null){
+    // Try to get symbols from morning go-list
+    const goCards = document.querySelectorAll('.go-card');
+    if(goCards.length){
+      qEl.innerHTML = '';
+      goCards.forEach(card => {
+        const sym = card.querySelector('.go-sym')?.textContent?.trim()?.split(' ')[0];
+        if(sym){
+          const btn = document.createElement('button');
+          btn.className = 'quick-sym-btn';
+          btn.textContent = sym;
+          btn.onclick = () => { document.getElementById('chartSymInput').value = sym; loadChart(sym); };
+          qEl.appendChild(btn);
+        }
+      });
+    }
+    // Also add SPY and QQQ always
+    ['SPY','QQQ'].forEach(sym => {
+      const btn = document.createElement('button');
+      btn.className = 'quick-sym-btn';
+      btn.textContent = sym;
+      btn.style.borderColor = 'rgba(79,195,247,.4)';
+      btn.style.color = 'var(--blue)';
+      btn.onclick = () => { document.getElementById('chartSymInput').value = sym; loadChart(sym); };
+      if(qEl) qEl.appendChild(btn);
+    });
+  }
+}
+
+function setChartTF(tf, btn){
+  currentChartTF = tf;
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(currentChartSym) loadChart(currentChartSym);
+}
+
+async function loadChart(sym){
+  if(!sym || !sym.trim()) return;
+  sym = sym.trim().toUpperCase();
+  currentChartSym = sym;
+  document.getElementById('chartSymInput').value = sym;
+  document.getElementById('chartWrap').style.display = 'block';
+  document.getElementById('chartEmpty').style.display = 'none';
+  document.getElementById('chartSymLabel').textContent = sym + ' — Loading...';
+  document.getElementById('chartStatsRow').innerHTML = '';
+
+  // Clear existing auto-refresh
+  if(chartInterval){ clearInterval(chartInterval); chartInterval = null; }
+
+  await fetchAndDrawChart(sym);
+
+  // Auto-refresh every 60 seconds
+  chartInterval = setInterval(() => fetchAndDrawChart(currentChartSym), 60000);
+}
+
+async function fetchAndDrawChart(sym){
+  try{
+    const r = await fetch(`/api/chart/${sym}?interval=${currentChartTF}&period=1d`);
+    const d = await r.json();
+    if(d.error){
+      document.getElementById('chartSymLabel').textContent = sym + ' — ' + d.error;
+      return;
+    }
+    chartData = d;
+    drawChart(d);
+    document.getElementById('chartUpdateTime').textContent = 'Updated ' + new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){
+    document.getElementById('chartSymLabel').textContent = sym + ' — Error: ' + e.message;
+  }
+}
+
+function drawChart(d){
+  const candles = d.candles;
+  if(!candles || !candles.length) return;
+
+  const last     = candles[candles.length-1];
+  const isUp     = d.change_pct >= 0;
+  const chgColor = isUp ? '#00ff88' : '#ff4466';
+  const chgSign  = isUp ? '+' : '';
+
+  // Update header
+  document.getElementById('chartSymLabel').textContent = `${d.symbol}  $${last.c}`;
+  document.getElementById('chartSymLabel').style.color = chgColor;
+
+  // Update stats row
+  const aboveVwap = last.c > last.vwap;
+  document.getElementById('chartStatsRow').innerHTML = `
+    <div class="cstat"><span class="cstat-l">Change</span><span class="cstat-v" style="color:${chgColor}">${chgSign}${d.change_pct}%</span></div>
+    <div class="cstat"><span class="cstat-l">VWAP</span><span class="cstat-v" style="color:#00ff88">$${last.vwap}</span></div>
+    <div class="cstat"><span class="cstat-l">vs VWAP</span><span class="cstat-v" style="color:${aboveVwap?'#00ff88':'#ff4466'}">${aboveVwap?'▲ ABOVE':'▼ BELOW'}</span></div>
+    <div class="cstat"><span class="cstat-l">EMA9</span><span class="cstat-v" style="color:#4fc3f7">$${last.ema9}</span></div>
+    <div class="cstat"><span class="cstat-l">EMA20</span><span class="cstat-v" style="color:#ff9800">$${last.ema20}</span></div>
+    <div class="cstat"><span class="cstat-l">High</span><span class="cstat-v" style="color:#00ff88">$${Math.max(...candles.map(c=>c.h))}</span></div>
+    <div class="cstat"><span class="cstat-l">Low</span><span class="cstat-v" style="color:#ff4466">$${Math.min(...candles.map(c=>c.l))}</span></div>
+    <div class="cstat"><span class="cstat-l">Volume</span><span class="cstat-v" style="color:var(--tdim)">${(candles.reduce((a,c)=>a+c.v,0)/1000).toFixed(0)}K</span></div>
+  `;
+
+  // ── Draw main candlestick chart ────────────────────────────────────────────
+  const canvas = document.getElementById('chartCanvas');
+  const dpr    = window.devicePixelRatio || 1;
+  const W      = canvas.parentElement.clientWidth - 32;
+  const H      = 400;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const PAD_L = 10, PAD_R = 60, PAD_T = 20, PAD_B = 30;
+  const chartW = W - PAD_L - PAD_R;
+  const chartH = H - PAD_T - PAD_B;
+
+  // Price range
+  const allPrices = candles.flatMap(c => [c.h, c.l, c.vwap, c.ema9, c.ema20]);
+  const minP = Math.min(...allPrices) * 0.9995;
+  const maxP = Math.max(...allPrices) * 1.0005;
+  const priceRange = maxP - minP;
+
+  const toY = p => PAD_T + chartH - ((p - minP) / priceRange) * chartH;
+  const toX = i => PAD_L + (i / (candles.length - 1 || 1)) * chartW;
+
+  // Background
+  ctx.fillStyle = '#0d0d1a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,.04)';
+  ctx.lineWidth = 1;
+  for(let i = 0; i <= 5; i++){
+    const y = PAD_T + (i / 5) * chartH;
+    ctx.beginPath(); ctx.moveTo(PAD_L, y); ctx.lineTo(W - PAD_R, y); ctx.stroke();
+    const price = maxP - (i / 5) * priceRange;
+    ctx.fillStyle = 'rgba(255,255,255,.3)';
+    ctx.font = `${9 * dpr / dpr}px monospace`;
+    ctx.fillText('$' + price.toFixed(2), W - PAD_R + 4, y + 3);
+  }
+
+  // VWAP line
+  ctx.beginPath(); ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 1.5;
+  candles.forEach((c,i) => { i===0 ? ctx.moveTo(toX(i), toY(c.vwap)) : ctx.lineTo(toX(i), toY(c.vwap)); });
+  ctx.stroke();
+
+  // EMA9 line
+  ctx.beginPath(); ctx.strokeStyle = '#4fc3f7'; ctx.lineWidth = 1;
+  candles.forEach((c,i) => { i===0 ? ctx.moveTo(toX(i), toY(c.ema9)) : ctx.lineTo(toX(i), toY(c.ema9)); });
+  ctx.stroke();
+
+  // EMA20 line
+  ctx.beginPath(); ctx.strokeStyle = '#ff9800'; ctx.lineWidth = 1;
+  candles.forEach((c,i) => { i===0 ? ctx.moveTo(toX(i), toY(c.ema20)) : ctx.lineTo(toX(i), toY(c.ema20)); });
+  ctx.stroke();
+
+  // Candles
+  const candleW = Math.max(2, (chartW / candles.length) * 0.6);
+  candles.forEach((c, i) => {
+    const x    = toX(i);
+    const up   = c.c >= c.o;
+    const col  = up ? '#00bcd4' : '#ff4466';
+    const fill = up ? 'rgba(0,188,212,.15)' : 'rgba(255,68,102,.15)';
+
+    // Wick
+    ctx.strokeStyle = col; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, toY(c.h));
+    ctx.lineTo(x, toY(c.l));
+    ctx.stroke();
+
+    // Body
+    const bodyTop = toY(Math.max(c.o, c.c));
+    const bodyH   = Math.max(1, Math.abs(toY(c.o) - toY(c.c)));
+    ctx.fillStyle = col;
+    ctx.fillRect(x - candleW/2, bodyTop, candleW, bodyH);
+  });
+
+  // Time labels on X axis
+  ctx.fillStyle = 'rgba(255,255,255,.3)';
+  ctx.font = '9px monospace';
+  const step = Math.max(1, Math.floor(candles.length / 8));
+  candles.forEach((c, i) => {
+    if(i % step === 0){
+      const t = new Date(c.t);
+      const label = t.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});
+      ctx.fillText(label, toX(i) - 15, H - 8);
+    }
+  });
+
+  // ── Draw volume chart ──────────────────────────────────────────────────────
+  const volCanvas = document.getElementById('chartVolCanvas');
+  const VH = 80;
+  volCanvas.width  = W * dpr;
+  volCanvas.height = VH * dpr;
+  volCanvas.style.width  = W + 'px';
+  volCanvas.style.height = VH + 'px';
+  const vctx = volCanvas.getContext('2d');
+  vctx.scale(dpr, dpr);
+
+  vctx.fillStyle = '#0d0d1a';
+  vctx.fillRect(0, 0, W, VH);
+
+  const maxVol = Math.max(...candles.map(c => c.v));
+  candles.forEach((c, i) => {
+    const x   = toX(i);
+    const up  = c.c >= c.o;
+    const barH = (c.v / maxVol) * (VH - 10);
+    vctx.fillStyle = up ? 'rgba(0,188,212,.5)' : 'rgba(255,68,102,.5)';
+    vctx.fillRect(x - candleW/2, VH - barH, candleW, barH);
+  });
+
+  // Vol label
+  vctx.fillStyle = 'rgba(255,255,255,.2)';
+  vctx.font = '9px monospace';
+  vctx.fillText('VOL', 2, 10);
+}
+
+// Make morning go-list cards clickable to open chart
+function openChartForSym(sym){
+  switchTab('chart', document.querySelector('.tab-chart'));
+  initChartTab();
+  setTimeout(() => loadChart(sym), 100);
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
