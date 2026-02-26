@@ -991,11 +991,17 @@ function renderMorning(data){
       <div class="go-sym" style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
         ${s.symbol} <span class="grade grade-${s.grade}" style="vertical-align:middle">${s.grade}</span>
         ${catalystBadge} ${spyBadge} ${vwapBadge}
+        ${s.earnings_days!==null&&s.earnings_days!==undefined&&s.earnings_days<=5?`<span style="font-family:var(--mono);font-size:.55rem;padding:.1rem .35rem;background:rgba(255,209,102,.1);border:1px solid rgba(255,209,102,.3);color:var(--yellow);letter-spacing:.06em">⚠️ EARN ${s.earnings_days}D</span>`:''}
+        ${s.qqq_condition?`<span style="font-family:var(--mono);font-size:.55rem;padding:.1rem .35rem;border:1px solid;letter-spacing:.06em;${s.qqq_condition==='bullish'?'color:var(--green);border-color:rgba(0,255,136,.3);background:rgba(0,255,136,.07)':s.qqq_condition==='bearish'?'color:var(--red);border-color:rgba(255,68,102,.3);background:rgba(255,68,102,.07)':'color:var(--yellow);border-color:rgba(255,209,102,.3);background:rgba(255,209,102,.07)'}">QQQ ${s.qqq_condition.toUpperCase()}</span>`:''}
       </div>
       <div class="go-grid">
         <div class="go-item"><label>Pre-Market</label><span style="color:${s.pm_change>0?'var(--green)':'var(--red)'}">${s.pm_change>0?'+':''}${s.pm_change}%</span></div>
         <div class="go-item"><label>Evening Score</label><span style="color:var(--blue)">${s.evening_score}/10</span></div>
+        <div class="go-item"><label>RVOL</label><span style="color:${s.rvol>=3?'var(--green)':s.rvol>=1.5?'var(--yellow)':'var(--red)'}">${s.rvol?s.rvol+'x':'—'}</span></div>
+        <div class="go-item"><label>ATR</label><span style="color:var(--tdim)">$${s.atr||'—'}</span></div>
         <div class="go-item"><label>Prev Close</label><span>$${s.prev_close}</span></div>
+        <div class="go-item"><label>Gap/ATR</label><span style="color:${s.gap_atr_ratio>2?'var(--yellow)':s.gap_atr_ratio>1?'var(--green)':'var(--tdim)'}">${s.gap_atr_ratio?s.gap_atr_ratio+'x':'—'}</span></div>
+        <div class="go-item"><label>Sector</label><span style="color:${s.sector_momentum==='green'?'var(--green)':s.sector_momentum==='red'?'var(--red)':'var(--tdim)'}">${s.sector_etf||'—'} ${s.sector_momentum==='green'?'▲':s.sector_momentum==='red'?'▼':'◆'}</span></div>
         <div class="go-item"><label>Best Window</label><span style="color:var(--purple);font-size:.7rem">${s.best_window}</span></div>
       </div>
       ${tl?`<div class="go-levels">
