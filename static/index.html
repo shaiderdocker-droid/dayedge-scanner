@@ -1455,6 +1455,28 @@ async function loadSPY(){
     const d = await r.json();
     updateIndexPill('SPY', d.spy, 'spyPill', 'spyDot', 'spyText');
     updateIndexPill('QQQ', d.qqq, 'qqqPill', 'qqqDot', 'qqqText');
+
+    // Update market badge to match SPY+QQQ live status
+    const badge = document.getElementById('mktBadge');
+    if(badge){
+      const spyS = d.spy ? d.spy.status : 'unknown';
+      const qqqS = d.qqq ? d.qqq.status : 'unknown';
+
+      let overall, label;
+      if(spyS === 'closed' || qqqS === 'closed'){
+        overall = 'neutral'; label = 'MARKET: CLOSED';
+      } else if(spyS === 'bullish' && qqqS === 'bullish'){
+        overall = 'bullish'; label = 'MARKET: BULLISH';
+      } else if(spyS === 'bearish' && qqqS === 'bearish'){
+        overall = 'bearish'; label = 'MARKET: BEARISH';
+      } else if(spyS === 'bearish' || qqqS === 'bearish'){
+        overall = 'bearish'; label = 'MARKET: CAUTION';
+      } else {
+        overall = 'neutral'; label = 'MARKET: NEUTRAL';
+      }
+      badge.textContent = label;
+      badge.className = 'mkt-badge ' + overall;
+    }
   }catch(e){}
 }
 if(typeof currentRole === 'undefined' || currentRole === 'admin'){
