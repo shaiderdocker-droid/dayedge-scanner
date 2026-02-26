@@ -896,57 +896,96 @@ def risk_dashboard():
 @app.route('/api/spy-condition')
 @login_required
 def spy_condition():
-    """Live SPY trend — green/yellow/red signal for intraday."""
+    """Live SPY + QQQ trend — green/yellow/red signal for intraday."""
+    def get_index_data(symbol):
+        try:
+            ticker = yf.Ticker(symbol)
+            df = ticker.history(period="1d", interval="5m")
+            if df is None or len(df) < 5:
+                return None
+
+            # Check if market is actually open — last bar must be recent
+            from datetime import timezone
+            last_bar_time = df.index[-1]
+            if hasattr(last_bar_time, 'tzinfo') and last_bar_time.tzinfo is not None:
+                now_utc = datetime.now(timezone.utc)
+                minutes_since_last_bar = (now_utc - last_bar_time).total_seconds() / 60
+            else:
+                minutes_since_last_bar = 0
+
+            market_open = minutes_since_last_bar < 15
+
+            price   = round(float(df['Close'].iloc[-1]), 2)
+            open_   = round(float(df['Open'].iloc[0]),  2)
+            high    = round(float(df['High'].max()), 2)
+            low     = round(float(df['Low'].min()),  2)
+            change  = round(price - open_, 2)
+            chg_pct = round((change / open_) * 100, 2)
+
+            ema9       = float(df['Close'].ewm(span=9).mean().iloc[-1])
+            above_ema9 = price > ema9
+
+            typical    = df[['High','Low','Close']].mean(axis=1)
+            vwap       = float((typical * df['Volume']).cumsum().iloc[-1] / df['Volume'].cumsum().iloc[-1])
+            above_vwap = price > vwap
+
+            last3       = df['Close'].tail(3).tolist()
+            trending_up = last3[-1] > last3[0]
+
+            if not market_open:
+                status  = "closed"
+                message = f"{symbol} market closed"
+            elif chg_pct > 0.3 and above_vwap and above_ema9:
+                status  = "bullish"
+                message = f"{symbol} trending up — good for longs"
+            elif chg_pct < -0.3 and not above_vwap:
+                status  = "bearish"
+                message = f"{symbol} selling off — avoid new longs"
+            else:
+                status  = "neutral"
+                message = f"{symbol} choppy — be selective"
+
+            return {
+                "status":      status,
+                "price":       price,
+                "open":        open_,
+                "high":        high,
+                "low":         low,
+                "change":      change,
+                "change_pct":  chg_pct,
+                "vwap":        round(vwap, 2),
+                "above_vwap":  above_vwap,
+                "above_ema9":  above_ema9,
+                "trending_up": trending_up,
+                "market_open": market_open,
+                "message":     message,
+            }
+        except Exception as e:
+            return {"status": "unknown", "message": str(e)}
+
     try:
-        spy = yf.Ticker("SPY")
-        df  = spy.history(period="1d", interval="5m")
-        if df is None or len(df) < 5:
-            return jsonify({"status": "unknown", "message": "No SPY data"})
+        spy_data = get_index_data("SPY")
+        qqq_data = get_index_data("QQQ")
 
-        price  = round(float(df['Close'].iloc[-1]), 2)
-        open_  = round(float(df['Open'].iloc[0]),  2)
-        high   = round(float(df['High'].max()), 2)
-        low    = round(float(df['Low'].min()),  2)
-        change = round(price - open_, 2)
-        chg_pct = round((change / open_) * 100, 2)
+        # Overall market condition based on both
+        spy_status = spy_data["status"] if spy_data else "unknown"
+        qqq_status = qqq_data["status"] if qqq_data else "unknown"
 
-        # 9 EMA on 5m bars
-        ema9 = df['Close'].ewm(span=9).mean().iloc[-1]
-        above_ema9 = price > ema9
-
-        # VWAP
-        typical = df[['High','Low','Close']].mean(axis=1)
-        vwap = float((typical * df['Volume']).cumsum().iloc[-1] / df['Volume'].cumsum().iloc[-1])
-        above_vwap = price > vwap
-
-        # Recent 3 candles direction
-        last3 = df['Close'].tail(3).tolist()
-        trending_up = last3[-1] > last3[0]
-
-        if chg_pct > 0.3 and above_vwap and above_ema9:
-            status = "bullish"
-            message = "SPY trending up — good conditions for longs"
-        elif chg_pct < -0.3 and not above_vwap:
-            status = "bearish"
-            message = "SPY selling off — tighten stops, avoid new entries"
+        if spy_status == "closed" or qqq_status == "closed":
+            overall = "closed"
+        elif spy_status == "bullish" and qqq_status == "bullish":
+            overall = "bullish"
+        elif spy_status == "bearish" or qqq_status == "bearish":
+            overall = "bearish"
         else:
-            status = "neutral"
-            message = "SPY choppy — be selective, wait for clear setups"
+            overall = "neutral"
 
         return jsonify({
-            "status":      status,
-            "price":       price,
-            "open":        open_,
-            "high":        high,
-            "low":         low,
-            "change":      change,
-            "change_pct":  chg_pct,
-            "vwap":        round(vwap, 2),
-            "above_vwap":  above_vwap,
-            "above_ema9":  above_ema9,
-            "trending_up": trending_up,
-            "message":     message,
-            "timestamp":   datetime.now().isoformat()
+            "status":    overall,
+            "spy":       spy_data,
+            "qqq":       qqq_data,
+            "message":   f"SPY {spy_status.upper()} · QQQ {qqq_status.upper()}",
+            "timestamp": datetime.now().isoformat()
         })
     except Exception as e:
         return jsonify({"status": "unknown", "message": str(e)})
