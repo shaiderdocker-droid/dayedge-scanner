@@ -1546,7 +1546,7 @@ def get_chart_data(symbol):
         typical = (df['High'] + df['Low'] + df['Close']) / 3
         cum_tpv  = (typical * df['Volume']).cumsum()
         cum_vol  = df['Volume'].cumsum()
-        vwap_series = (cum_tpv / cum_vol.replace(0, float('nan'))).fillna(method='ffill')
+        vwap_series = (cum_tpv / cum_vol.replace(0, float('nan'))).ffill()
 
         # Calculate EMA9 and EMA20
         ema9  = df['Close'].ewm(span=9,  adjust=False).mean()
