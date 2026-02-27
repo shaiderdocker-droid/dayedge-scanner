@@ -987,12 +987,16 @@ def run_morning_scan():
 
             print(f"  [MORNING] ✅ {sym} passed all filters — PM:{pm:+.1f}% RVOL:{rvol:.1f}x R/R:{rr} ATR:${atr_val:.2f}")
 
+            # Pull headlines from the evening scan pick so they show on morning card
+            pick_headlines = pick.get("headlines", [])[:3]
+
             golist.append({
                 "symbol": sym, "evening_score": pick["score"], "grade": pick["grade"],
                 "prev_close": pick["last_close"], "pm_change": pm,
                 "pm_volume": pm_vol, "pm_vol_pct": pm_vol_pct,
                 "first_15min_rvol": first_15_rvol,
                 "has_catalyst": has_catalyst,
+                "headlines": pick_headlines,
                 "vwap": vwap,
                 "rvol": round(effective_rvol, 2),
                 "atr": round(atr_val, 2),
