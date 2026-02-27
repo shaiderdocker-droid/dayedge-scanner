@@ -671,6 +671,30 @@ def live_tracker():
             # Check if high was above T1 at any point (potential missed exit)
             t1_was_touched = bool(t1 and day_high >= t1)
 
+            # Pre-market high — highest price before 9:30am ET
+            pm_high = None
+            try:
+                pm_df = ticker.history(period="1d", interval="5m", prepost=True)
+                if pm_df is not None and len(pm_df) > 0:
+                    pm_bars = pm_df[pm_df.index.hour < 9]
+                    if not pm_bars.empty:
+                        pm_high = round(float(pm_bars['High'].max()), 2)
+            except:
+                pass
+
+            # First 5 minute candle signal
+            first_candle_above_vwap = False
+            first_candle_close = None
+            try:
+                if len(df) >= 1:
+                    first_candle_close = round(float(df['Close'].iloc[0]), 2)
+                    first_candle_above_vwap = first_candle_close > vwap
+            except:
+                pass
+
+            # PM high breakout signal
+            pm_breakout = bool(pm_high and price > pm_high)
+
             stocks.append({
                 "symbol":       sym,
                 "grade":        s.get("grade", "C"),
@@ -684,11 +708,16 @@ def live_tracker():
                 "pnl_dollar":   pnl_dollar,
                 "zone":         zone,
                 "pullback_signal": pullback_signal,
+                "pm_high":      pm_high,
+                "pm_breakout":  pm_breakout,
+                "first_candle_close": first_candle_close,
+                "first_candle_above_vwap": first_candle_above_vwap,
                 "t1_was_touched": t1_was_touched,
                 "target1":      t1,
                 "target2":      t2,
                 "target3":      t3,
                 "stop":         stop,
+                "has_catalyst": s.get("has_catalyst", False),
                 "evening_score": s.get("evening_score", 0),
             })
         except Exception as e:
@@ -1598,6 +1627,20 @@ def get_chart_data(symbol):
         change     = round(last['c'] - candles[0]['o'], 2)
         change_pct = round((change / candles[0]['o']) * 100, 2) if candles[0]['o'] else 0
 
+        # Pre-market high
+        pm_high = None
+        try:
+            pm_df = ticker.history(period="1d", interval="5m", prepost=True)
+            if pm_df is not None and len(pm_df) > 0:
+                import math
+                pm_bars = pm_df[pm_df.index.hour < 9]
+                if not pm_bars.empty:
+                    pm_high_val = float(pm_bars['High'].max())
+                    if not math.isnan(pm_high_val):
+                        pm_high = round(pm_high_val, 2)
+        except:
+            pass
+
         return jsonify({
             'symbol':      symbol,
             'name':        company_name,
@@ -1611,10 +1654,82 @@ def get_chart_data(symbol):
             'change':      change,
             'change_pct':  change_pct,
             'above_vwap':  last['c'] > last['vwap'],
+            'pm_high':     pm_high,
             'timestamp':   datetime.now().isoformat(),
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/daily-loss', methods=['GET','POST'])
+@login_required
+def daily_loss():
+    """Track and enforce daily max loss limit."""
+    import json
+    DATA_FILE = data_path("daily_loss.json")
+
+    def load_loss():
+        try:
+            with open(DATA_FILE) as f: return json.load(f)
+        except: return {}
+
+    def save_loss(data):
+        with open(DATA_FILE, 'w') as f: json.dump(data, f)
+
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    if request.method == 'POST':
+        body = request.get_json(silent=True) or {}
+        action = body.get('action')
+        account = float(body.get('account', 25000))
+        max_loss_pct = float(body.get('max_loss_pct', 3.0))
+
+        loss_data = load_loss()
+        if today not in loss_data:
+            loss_data[today] = {'trades': [], 'account': account, 'max_loss_pct': max_loss_pct}
+
+        if action == 'add_trade':
+            loss_data[today]['trades'].append({
+                'symbol': body.get('symbol',''),
+                'pnl_dollar': float(body.get('pnl_dollar', 0)),
+                'time': datetime.now().isoformat()
+            })
+            save_loss(loss_data)
+
+        if action == 'reset':
+            loss_data[today] = {'trades': [], 'account': account, 'max_loss_pct': max_loss_pct}
+            save_loss(loss_data)
+
+        if action == 'set_settings':
+            loss_data[today]['account'] = account
+            loss_data[today]['max_loss_pct'] = max_loss_pct
+            save_loss(loss_data)
+
+    loss_data = load_loss()
+    today_data = loss_data.get(today, {'trades': [], 'account': 25000, 'max_loss_pct': 3.0})
+
+    account = float(today_data.get('account', 25000))
+    max_loss_pct = float(today_data.get('max_loss_pct', 3.0))
+    max_loss_dollar = account * (max_loss_pct / 100)
+    trades = today_data.get('trades', [])
+
+    total_pnl = sum(t['pnl_dollar'] for t in trades)
+    remaining = max_loss_dollar + total_pnl  # how much more can be lost
+    used_pct = round(abs(min(0, total_pnl)) / max_loss_dollar * 100, 1) if max_loss_dollar > 0 else 0
+    trading_halted = total_pnl <= -max_loss_dollar
+
+    return jsonify({
+        'today': today,
+        'account': account,
+        'max_loss_pct': max_loss_pct,
+        'max_loss_dollar': round(max_loss_dollar, 2),
+        'total_pnl': round(total_pnl, 2),
+        'remaining_risk': round(max(0, remaining), 2),
+        'used_pct': used_pct,
+        'trading_halted': trading_halted,
+        'trade_count': len(trades),
+        'trades': trades,
+        'status': 'HALTED' if trading_halted else 'CAUTION' if used_pct > 66 else 'OK'
+    })
 
 @app.route('/api/status')
 def status():
