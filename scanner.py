@@ -174,6 +174,39 @@ DEFAULT_WATCHLIST = [
 
     # --- Misc High Growth ---
     "ZI", "TTD", "MGNI", "PUBM", "LMND", "ROOT", "JOBY", "ACHR",
+
+    # --- Additional Stocks (added batch 2) ---
+    "BK", "STT", "CMA", "ALLY", "SYF", "DFS", "AIG", "MET",
+    "PRU", "AFL", "HIG", "CB", "TRV", "ALL", "PGR", "CME",
+    "ICE", "LPLA", "RJF", "FDS", "MSCI", "CBOE", "MKTX", "ACGL",
+    "NTRS", "FITB", "LNC", "TJX", "ROST", "BIG", "DLTR", "DG",
+    "BURL", "ANF", "AEO", "PVH", "RL", "HBI", "CPRI", "TPR",
+    "EBAY", "AMCR", "CHD", "CLX", "EL", "KVUE", "KMB", "SPB",
+    "SCI", "HRB", "HLT", "WH", "CHH", "VAC", "TNL", "PSX",
+    "VLO", "MPC", "PBF", "DINO", "HES", "APA", "CTRA", "SM",
+    "MTDR", "ESTE", "MGY", "VTLE", "TALO", "CIVI", "NOG", "RRC",
+    "EQT", "SWN", "AR", "CHK", "CRK", "PH", "DOV", "AME",
+    "HUBB", "AOS", "FELE", "WMS", "AAON", "AIT", "GATX", "IBP",
+    "MWA", "ROAD", "SITE", "TREX", "WCC", "WSO", "KEYS", "TER",
+    "COHR", "ACMR", "AEIS", "ITRI", "NOVT", "PLUS", "PRFT", "QRVO",
+    "SLAB", "SMTC", "VIAV", "VSAT", "SRPT", "ITCI", "JAZZ", "EXEL",
+    "LNTH", "PCVX", "MDGL", "ARVN", "AXSM", "BBIO", "BPMC", "CLDX",
+    "CORT", "DCPH", "DVAX", "ELAN", "FLGT", "GKOS", "HALO", "IART",
+    "IDYA", "INVA", "JANX", "KPTI", "LGND", "MGNX", "MNKD", "MYGN",
+    "NRIX", "OCGN", "ORGO", "PTCT", "RCUS", "RNA", "RVMD", "SAGE",
+    "SMMT", "STOK", "TGTX", "TVTX", "TYRA", "VERA", "VRDN", "XNCR",
+    "YMAB", "ZNTL", "ANAB", "AUPH", "BCYC", "CNTA", "DSGN", "ETNB",
+    "GOSS", "HOOK", "IPSC", "KALA", "MERUS", "MRNS", "PRGO", "PSNL",
+    "RPRX", "SANA", "SEER", "SLDB", "SVRA", "TRIL", "SBAC", "PSA",
+    "EXR", "CUBE", "LSI", "NSA", "COLD", "STAG", "FR", "EGP",
+    "TRNO", "REXR", "LPT", "BXMT", "MPW", "LTC", "CTRE", "NHI",
+    "PEAK", "VTR", "HR", "DOC", "GMRE", "LIN", "APD", "EMN",
+    "CE", "OLN", "HUN", "TROX", "WLK", "AXTA", "PPG", "SHW",
+    "RPM", "HWKN", "SAVE", "JBLU", "ALK", "HA", "TRIP", "DESP",
+    "MGM", "CZR", "BYD", "SIRI", "LSXMA", "DUK", "AEP", "PPL",
+    "XEL", "CMS", "NRG", "VST", "CWEN", "OGE", "APPS", "DV",
+    "IS", "TBLA",
+
 ]
 
 # Remove duplicates while preserving order
