@@ -47,6 +47,12 @@ header{background:var(--panel);border-bottom:1px solid var(--border2);padding:0 
 .cstat{font-family:var(--mono);font-size:.65rem}
 .cstat-l{color:var(--tdim);font-size:.52rem;letter-spacing:.1em;text-transform:uppercase;display:block}
 .cstat-v{font-size:.78rem;font-weight:700}
+.alert-strip{display:flex;flex-wrap:wrap;gap:.5rem;padding:.75rem 1rem;background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.2);margin-bottom:1rem}
+.alert-pill{font-family:var(--mono);font-size:.65rem;padding:.3rem .7rem;border:1px solid;letter-spacing:.06em;animation:alertpulse 2s infinite}
+.alert-vwap{color:var(--green);border-color:rgba(0,255,136,.5);background:rgba(0,255,136,.1)}
+.alert-pmhigh{color:var(--purple);border-color:rgba(192,132,252,.5);background:rgba(192,132,252,.08)}
+.alert-candle{color:var(--blue);border-color:rgba(79,195,247,.5);background:rgba(79,195,247,.08)}
+@keyframes alertpulse{0%,100%{opacity:1}50%{opacity:.6}}
 .hdr-right{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
 .mkt-badge{font-family:var(--mono);font-size:.7rem;padding:.3rem .8rem;letter-spacing:.1em;text-transform:uppercase;border:1px solid}
 .bullish{color:var(--green);border-color:var(--green);background:rgba(0,255,136,.08)}
@@ -452,6 +458,7 @@ td{padding:.85rem 1rem;vertical-align:middle}
     <div class="tab tab-pattern" onclick="switchTab('pattern',this);loadPatterns()">🔍 PATTERNS</div>
     <div class="tab tab-journal" onclick="switchTab('journal',this);loadJournal()">📓 JOURNAL</div>
     <div class="tab tab-chart" onclick="switchTab('chart',this);initChartTab()">📈 CHARTS</div>
+    <div class="tab" style="color:var(--red)" onclick="switchTab('loss',this);loadLossLimit()">🛡 LOSS LIMIT</div>
   </div>
 
   <!-- ─── EVENING TAB ──────────────────────────────────────────── -->
@@ -482,6 +489,15 @@ td{padding:.85rem 1rem;vertical-align:middle}
       <div class="section-title">Morning Go-List</div>
       <div class="section-sub" id="morningTime">Stocks confirming pre-market strength from last night's picks</div>
     </div>
+
+    <!-- Live entry alerts strip -->
+    <div id="entryAlerts" style="display:none;margin-bottom:1rem"></div>
+
+    <!-- Daily loss warning banner -->
+    <div id="morningLossBanner" style="display:none;background:rgba(255,68,102,.08);border:1px solid rgba(255,68,102,.4);padding:.7rem 1rem;margin-bottom:1rem;font-family:var(--mono);font-size:.72rem;color:var(--red);display:none">
+      🛑 DAILY LOSS LIMIT REACHED — No more trades today. Review journal instead.
+    </div>
+
     <div class="golist" id="goList">
       <div class="empty"><div class="empty-title">NO MORNING DATA</div><div class="empty-sub">Click Morning Scan or wait for 9am ET auto-run</div></div>
     </div>
@@ -763,6 +779,8 @@ td{padding:.85rem 1rem;vertical-align:middle}
         <span style="font-family:var(--mono);font-size:.58rem;color:var(--tdim)"><span style="color:#4fc3f7">━</span> EMA9</span>
         <span style="font-family:var(--mono);font-size:.58rem;color:var(--tdim)"><span style="color:#ff9800">━</span> EMA20</span>
         <span style="font-family:var(--mono);font-size:.58rem;color:var(--tdim)"><span style="color:#00bcd4">█</span> Up &nbsp;<span style="color:#ff4466">█</span> Down</span>
+        <span style="font-family:var(--mono);font-size:.58rem;color:var(--tdim)"><span style="color:#c084fc">╌╌</span> PM High</span>
+        <span style="font-family:var(--mono);font-size:.58rem;color:var(--tdim)"><span style="color:rgba(255,255,255,.2)">╌╌</span> Prev Close</span>
       </div>
     </div>
     <div id="chartEmpty" style="text-align:center;padding:3rem;font-family:var(--mono);font-size:.75rem;color:var(--tdim)">Enter a ticker above or click a stock from your morning go-list to view its chart</div>
@@ -850,8 +868,60 @@ td{padding:.85rem 1rem;vertical-align:middle}
     </div>
   </div>
 
+  <!-- ─── DAILY LOSS LIMIT TAB ─────────────────────────────────────── -->
+  <div class="tab-content" id="tab-loss">
+    <div class="section-hdr">
+      <div class="section-title" style="color:var(--red)">🛡 Daily Loss Limit</div>
+      <div class="section-sub">Protect your account — trading automatically flagged when daily limit is hit</div>
+    </div>
+
+    <div style="background:var(--panel);border:1px solid var(--border);padding:1.25rem;margin-bottom:1.5rem">
+      <div style="font-family:var(--mono);font-size:.6rem;color:var(--tdim);letter-spacing:.15em;text-transform:uppercase;margin-bottom:1rem">// Settings</div>
+      <div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-family:var(--mono);font-size:.58rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase">Account Size $</label>
+          <input type="number" id="lossAccount" value="25000" min="1000" step="1000"
+            style="background:var(--bg);border:1px solid var(--border2);color:var(--tbright);font-family:var(--mono);font-size:.88rem;padding:.35rem .6rem;outline:none;width:130px"/>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-family:var(--mono);font-size:.58rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase">Max Loss % Per Day</label>
+          <input type="number" id="lossMaxPct" value="3" min="0.5" max="10" step="0.5"
+            style="background:var(--bg);border:1px solid var(--border2);color:var(--tbright);font-family:var(--mono);font-size:.88rem;padding:.35rem .6rem;outline:none;width:100px"/>
+        </div>
+        <button class="btn btn-green" onclick="saveLossSettings()">SAVE SETTINGS</button>
+        <button class="btn" style="border-color:var(--tdim);color:var(--tdim)" onclick="resetLossDay()">RESET DAY</button>
+      </div>
+    </div>
+
+    <!-- Status display -->
+    <div id="lossStatus" style="margin-bottom:1.5rem">
+      <div class="empty"><div class="empty-title">LOADING...</div></div>
+    </div>
+
+    <!-- Add trade P&L -->
+    <div style="background:var(--panel);border:1px solid var(--border);padding:1.25rem;margin-bottom:1.5rem">
+      <div style="font-family:var(--mono);font-size:.6rem;color:var(--tdim);letter-spacing:.15em;text-transform:uppercase;margin-bottom:1rem">// Log Completed Trade</div>
+      <div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-family:var(--mono);font-size:.58rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase">Symbol</label>
+          <input type="text" id="lossSymbol" placeholder="AAPL" maxlength="6"
+            style="background:var(--bg);border:1px solid var(--border2);color:var(--tbright);font-family:var(--mono);font-size:.88rem;padding:.35rem .6rem;outline:none;width:100px;text-transform:uppercase"/>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem">
+          <label style="font-family:var(--mono);font-size:.58rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase">P&L $ (neg = loss)</label>
+          <input type="number" id="lossPnl" placeholder="-250" step="1"
+            style="background:var(--bg);border:1px solid var(--border2);color:var(--tbright);font-family:var(--mono);font-size:.88rem;padding:.35rem .6rem;outline:none;width:130px"/>
+        </div>
+        <button class="btn btn-green" onclick="addLossTrade()">LOG TRADE</button>
+      </div>
+    </div>
+
+    <!-- Trade log -->
+    <div id="lossTradeLog"></div>
+  </div>
+
   <div class="status-bar">
-    <div class="smono"><span class="sdot"></span>DAYEDGE v5 · 11 TABS · LIVE TRACKER · PRE-MARKET · RISK DASHBOARD · PATTERNS · JOURNAL</div>
+    <div class="smono"><span class="sdot"></span>DAYEDGE v5 · 12 TABS · CHARTS · LIVE TRACKER · PRE-MARKET · RISK · DAILY LOSS LIMIT · JOURNAL</div>
   </div>
 </main>
 
@@ -868,6 +938,7 @@ const ROLES = {
   'pm':       'user',
   'risk':     'user',
   'chart':    'user',
+  'loss':     'user',
   'eod':      'admin',
   'pattern':  'admin',
   'journal':  'admin',
@@ -1061,13 +1132,20 @@ function renderMorning(data){
         <div class="go-item"><label>Best Window</label><span style="color:var(--purple);font-size:.7rem">${s.best_window}</span></div>
       </div>
       ${tl?`<div class="go-levels">
-        <div class="go-levels-title">Trade Levels</div>
+        <div class="go-levels-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Trade Levels</span>
+          ${s.trade_levels&&s.trade_levels.entry&&s.trade_levels.stop?`<span id="possize-${s.symbol}" style="font-family:var(--mono);font-size:.6rem;color:var(--orange);cursor:pointer" onclick="calcPosSize('${s.symbol}',${s.trade_levels.entry||0},${s.trade_levels.stop||0})" title="Click to calculate shares">📐 SHARES: —</span>`:''}
+        </div>
         <div class="go-lvl-row"><span style="color:var(--tdim)">Entry</span><span style="color:var(--blue)">$${tl.entry}</span></div>
         <div class="go-lvl-row"><span style="color:var(--tdim)">Stop</span><span style="color:var(--red)">$${tl.stop} (${tl.stop_pct}%)</span></div>
         <div class="go-lvl-row"><span style="color:var(--tdim)">T1</span><span style="color:var(--green)">$${tl.target1}</span></div>
         <div class="go-lvl-row"><span style="color:var(--tdim)">T2</span><span style="color:var(--yellow)">$${tl.target2}</span></div>
         ${tl.rr_ratio?`<div class="go-lvl-row"><span style="color:var(--tdim)">R/R</span><span style="color:${parseFloat(tl.rr_ratio)>=2?'var(--green)':parseFloat(tl.rr_ratio)>=1?'var(--yellow)':'var(--red)'}">${tl.rr_ratio}:1</span></div>`:''}
         <div class="go-lvl-row"><span style="color:var(--tdim)">T3</span><span style="color:var(--orange)">$${tl.target3}</span></div>
+      </div>`:''}
+      ${s.headlines&&s.headlines.length?`<div style="background:rgba(79,195,247,.04);border:1px solid rgba(79,195,247,.15);padding:.5rem .7rem;margin-top:.5rem;font-family:var(--mono);font-size:.6rem;color:var(--tdim);line-height:1.6">
+        <span style="color:var(--blue);letter-spacing:.08em;font-size:.55rem">📰 CATALYST</span><br>
+        ${s.headlines.slice(0,2).map(h=>`<span style="color:var(--t)">• ${h}</span>`).join('<br>')}
       </div>`:''}
       <div class="traded-toggle" id="tgl-${s.symbol}">
         <button class="traded-btn" id="tyes-${s.symbol}" onclick="setTraded('${s.symbol}',true)">✅ I TRADED THIS</button>
@@ -1598,7 +1676,11 @@ function renderLive(data){
           ${s.target2?`<span style="padding:.15rem .4rem;border:1px solid ${t2hit?'rgba(0,255,136,.4)':'var(--border)'};color:${t2hit?'var(--green)':'var(--tdim)'}">T2 $${s.target2}</span>`:''}
           ${s.target3?`<span style="padding:.15rem .4rem;border:1px solid var(--border);color:var(--tdim)">T3 $${s.target3}</span>`:''}
         </div>
-        ${s.pullback_signal?`<div style="background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.3);color:var(--green);font-family:var(--mono);font-size:.6rem;padding:.28rem .55rem;margin-top:.5rem">⚡ PULLBACK TO VWAP — POTENTIAL ENTRY ZONE</div>`:''}
+        <div style="display:flex;flex-direction:column;gap:.3rem;margin-top:.5rem">
+          ${s.pullback_signal?`<div style="background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.3);color:var(--green);font-family:var(--mono);font-size:.6rem;padding:.28rem .55rem">⚡ VWAP PULLBACK — ENTRY ZONE</div>`:''}
+          ${s.pm_high?`<div style="background:rgba(79,195,247,.05);border:1px solid rgba(79,195,247,.2);color:var(--blue);font-family:var(--mono);font-size:.6rem;padding:.28rem .55rem">📊 PM HIGH: $${s.pm_high}${s.pm_breakout?' — ✅ BROKEN OUT':'  — watch for breakout'}</div>`:''}
+          ${s.first_candle_close?`<div style="background:${s.first_candle_above_vwap?'rgba(0,255,136,.05)':'rgba(255,68,102,.05)'};border:1px solid ${s.first_candle_above_vwap?'rgba(0,255,136,.2)':'rgba(255,68,102,.2)'};color:${s.first_candle_above_vwap?'var(--green)':'var(--red)'};font-family:var(--mono);font-size:.6rem;padding:.28rem .55rem">🕯 1ST CANDLE: $${s.first_candle_close} — ${s.first_candle_above_vwap?'✅ ABOVE VWAP':'❌ BELOW VWAP'}</div>`:''}
+        </div>
       </div>`;
     }).join('') + '</div>';
 }
@@ -1607,6 +1689,79 @@ function renderLive(data){
 setInterval(()=>{
   if(document.getElementById('tab-live').classList.contains('active')) loadLive();
 },60000);
+
+// ── ENTRY ALERT POLLING ───────────────────────────────────────────────────────
+// Poll live tracker every 30s to generate entry alerts on morning tab
+let lastAlertSyms = new Set();
+
+async function pollEntryAlerts(){
+  try{
+    const r = await fetch('/api/live-tracker');
+    const d = await r.json();
+    if(!d.stocks || !d.stocks.length) return;
+
+    const alerts = [];
+
+    d.stocks.forEach(s => {
+      // 1. VWAP pullback — price within 0.5% of VWAP and above entry
+      if(s.pullback_signal && s.price > s.entry){
+        alerts.push({
+          sym: s.symbol,
+          type: 'vwap',
+          label: `⚡ ${s.symbol} — VWAP PULLBACK $${s.vwap} · Grade ${s.grade}`,
+          cls: 'alert-vwap'
+        });
+      }
+
+      // 2. PM high breakout
+      if(s.pm_breakout && !lastAlertSyms.has(s.symbol + '_pmhigh')){
+        alerts.push({
+          sym: s.symbol,
+          type: 'pmhigh',
+          label: `📊 ${s.symbol} — BROKE PM HIGH $${s.pm_high} ✅`,
+          cls: 'alert-pmhigh'
+        });
+        lastAlertSyms.add(s.symbol + '_pmhigh');
+      }
+
+      // 3. First candle above VWAP
+      if(s.first_candle_above_vwap && !lastAlertSyms.has(s.symbol + '_1stcandle')){
+        alerts.push({
+          sym: s.symbol,
+          type: 'candle',
+          label: `🕯 ${s.symbol} — 1st candle CLOSED ABOVE VWAP $${s.first_candle_close}`,
+          cls: 'alert-candle'
+        });
+        lastAlertSyms.add(s.symbol + '_1stcandle');
+      }
+    });
+
+    // Show alerts on morning tab
+    const alertEl = document.getElementById('entryAlerts');
+    if(alertEl){
+      if(alerts.length){
+        alertEl.style.display = 'block';
+        alertEl.innerHTML = `<div class="alert-strip">
+          <span style="font-family:var(--mono);font-size:.55rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase;align-self:center">LIVE SIGNALS:</span>
+          ${alerts.map(a => `<span class="alert-pill ${a.cls}" onclick="openChartForSym('${a.sym}')" style="cursor:pointer" title="Click to view chart">${a.label}</span>`).join('')}
+        </div>`;
+      } else {
+        alertEl.style.display = 'none';
+      }
+    }
+
+    // Check daily loss limit and show banner
+    const lossR = await fetch('/api/daily-loss');
+    const lossD = await lossR.json();
+    const banner = document.getElementById('morningLossBanner');
+    if(banner) banner.style.display = lossD.trading_halted ? 'block' : 'none';
+
+  }catch(e){}
+}
+
+// Poll every 30 seconds during market hours
+setInterval(pollEntryAlerts, 30000);
+pollEntryAlerts(); // Run immediately
 
 // ── PRE-MARKET MOMENTUM ───────────────────────────────────────────────────────
 async function loadPM(force=false){
@@ -2131,6 +2286,8 @@ function drawChart(d){
     <div class="cstat"><span class="cstat-l">High</span><span class="cstat-v" style="color:#00ff88">$${Math.max(...candles.map(c=>c.h))}</span></div>
     <div class="cstat"><span class="cstat-l">Low</span><span class="cstat-v" style="color:#ff4466">$${Math.min(...candles.map(c=>c.l))}</span></div>
     <div class="cstat"><span class="cstat-l">Volume</span><span class="cstat-v" style="color:var(--tdim)">${(candles.reduce((a,c)=>a+c.v,0)/1000).toFixed(0)}K</span></div>
+    ${d.pm_high?`<div class="cstat"><span class="cstat-l">PM High</span><span class="cstat-v" style="color:#c084fc">$${d.pm_high}</span></div>`:''}
+    ${d.prev_close?`<div class="cstat"><span class="cstat-l">Prev Close</span><span class="cstat-v" style="color:var(--tdim)">$${d.prev_close}</span></div>`:''}
   `;
 
   // ── Draw main candlestick chart ────────────────────────────────────────────
@@ -2211,6 +2368,35 @@ function drawChart(d){
     ctx.fillRect(x - candleW/2, bodyTop, candleW, bodyH);
   });
 
+  // Pre-market high line
+  if(d.pm_high && d.pm_high > minP && d.pm_high < maxP){
+    const pmY = toY(d.pm_high);
+    ctx.beginPath();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(192,132,252,.7)';
+    ctx.lineWidth = 1.5;
+    ctx.moveTo(PAD_L, pmY);
+    ctx.lineTo(W - PAD_R, pmY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(192,132,252,.9)';
+    ctx.font = '9px monospace';
+    ctx.fillText('PM HIGH $'+d.pm_high, W - PAD_R + 4, pmY + 3);
+  }
+
+  // Previous close line
+  if(d.prev_close && d.prev_close > minP && d.prev_close < maxP){
+    const pcY = toY(d.prev_close);
+    ctx.beginPath();
+    ctx.setLineDash([2, 6]);
+    ctx.strokeStyle = 'rgba(255,255,255,.2)';
+    ctx.lineWidth = 1;
+    ctx.moveTo(PAD_L, pcY);
+    ctx.lineTo(W - PAD_R, pcY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   // Time labels on X axis
   ctx.fillStyle = 'rgba(255,255,255,.3)';
   ctx.font = '9px monospace';
@@ -2258,6 +2444,170 @@ function openChartForSym(sym){
   setTimeout(() => loadChart(sym), 100);
 }
 
+
+// ── POSITION SIZE CALCULATOR ──────────────────────────────────────────────────
+function calcPosSize(sym, entry, stop){
+  const account = parseFloat(document.getElementById('lossAccount')?.value || 25000);
+  const riskPct = parseFloat(document.getElementById('riskPct')?.value || 1.0);
+  const maxRisk = account * (riskPct / 100);
+  const riskPerShare = Math.abs(entry - stop);
+  if(riskPerShare <= 0) return;
+  const shares = Math.floor(maxRisk / riskPerShare);
+  const el = document.getElementById('possize-' + sym);
+  if(el) el.textContent = '📐 ' + shares + ' SHARES';
+  toast(`${sym}: Buy ${shares} shares — risks $${maxRisk.toFixed(0)} (${riskPct}%)`);
+}
+
+// Auto-calculate position sizes when morning list renders
+function calcAllPosSizes(){
+  const account = parseFloat(document.getElementById('lossAccount')?.value || 25000);
+  const riskPct = 1.0;
+  document.querySelectorAll('[id^="possize-"]').forEach(el => {
+    const sym = el.id.replace('possize-','');
+    const entry = parseFloat(el.dataset.entry || 0);
+    const stop  = parseFloat(el.dataset.stop || 0);
+    if(entry && stop){
+      const shares = Math.floor((account * riskPct / 100) / Math.abs(entry - stop));
+      el.textContent = '📐 ' + shares + ' SHARES';
+    }
+  });
+}
+
+// ── DAILY LOSS LIMIT ──────────────────────────────────────────────────────────
+async function loadLossLimit(){
+  try{
+    const r = await fetch('/api/daily-loss');
+    const d = await r.json();
+    renderLossStatus(d);
+    renderLossTradeLog(d.trades || []);
+    // Sync settings fields
+    if(d.account) document.getElementById('lossAccount').value = d.account;
+    if(d.max_loss_pct) document.getElementById('lossMaxPct').value = d.max_loss_pct;
+  }catch(e){
+    document.getElementById('lossStatus').innerHTML = `<div class="empty"><div class="empty-title">ERROR</div><div class="empty-sub">${e.message}</div></div>`;
+  }
+}
+
+function renderLossStatus(d){
+  const el = document.getElementById('lossStatus');
+  const halted = d.trading_halted;
+  const pct = d.used_pct || 0;
+  const barColor = halted ? 'var(--red)' : pct > 66 ? 'var(--yellow)' : 'var(--green)';
+  const statusColor = halted ? 'var(--red)' : pct > 66 ? 'var(--yellow)' : 'var(--green)';
+
+  el.innerHTML = `
+    <div style="background:${halted?'rgba(255,68,102,.08)':'var(--panel)'};border:1px solid ${halted?'rgba(255,68,102,.4)':'var(--border)'};padding:1.5rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+        <div style="font-family:var(--disp);font-size:1.8rem;font-weight:800;color:${statusColor}">
+          ${halted ? '🛑 TRADING HALTED' : d.status === 'CAUTION' ? '⚠ CAUTION' : '✅ TRADING OK'}
+        </div>
+        <div style="font-family:var(--mono);font-size:.75rem;color:var(--tdim)">${d.today}</div>
+      </div>
+
+      <!-- Progress bar -->
+      <div style="background:var(--border);height:8px;margin-bottom:1rem;overflow:hidden">
+        <div style="height:100%;width:${Math.min(100,pct)}%;background:${barColor};transition:width .5s"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem">
+        ${[
+          ['Max Loss', '-$'+d.max_loss_dollar.toFixed(0)+' ('+d.max_loss_pct+'%)', 'var(--red)'],
+          ['Used Today', '$'+Math.abs(Math.min(0,d.total_pnl)).toFixed(0)+' ('+pct+'%)', barColor],
+          ['Remaining', '$'+d.remaining_risk.toFixed(0), d.remaining_risk > 0 ? 'var(--green)' : 'var(--red)'],
+          ['Trades Today', d.trade_count, 'var(--tbright)'],
+        ].map(([l,v,c])=>`
+        <div>
+          <div style="font-family:var(--mono);font-size:.55rem;color:var(--tdim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.2rem">${l}</div>
+          <div style="font-family:var(--disp);font-size:1.4rem;font-weight:800;color:${c}">${v}</div>
+        </div>`).join('')}
+      </div>
+
+      ${halted ? `<div style="margin-top:1rem;background:rgba(255,68,102,.1);border:1px solid rgba(255,68,102,.3);padding:.75rem 1rem;font-family:var(--mono);font-size:.75rem;color:var(--red)">
+        🛑 Daily loss limit reached. No more trades today. Come back tomorrow with a clear head.
+      </div>` : d.status === 'CAUTION' ? `<div style="margin-top:1rem;background:rgba(255,209,102,.07);border:1px solid rgba(255,209,102,.3);padding:.75rem 1rem;font-family:var(--mono);font-size:.75rem;color:var(--yellow)">
+        ⚠ Over 66% of daily limit used. Be very selective — only Grade A catalyst trades with perfect setup.
+      </div>` : ''}
+    </div>`;
+}
+
+function renderLossTradeLog(trades){
+  const el = document.getElementById('lossTradeLog');
+  if(!trades.length){
+    el.innerHTML = `<div style="font-family:var(--mono);font-size:.7rem;color:var(--tdim);padding:.5rem 0">No trades logged today.</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div style="font-family:var(--mono);font-size:.6rem;color:var(--tdim);letter-spacing:.15em;text-transform:uppercase;margin-bottom:.5rem">// Today's Trades</div>
+    <div style="background:var(--panel);border:1px solid var(--border)">
+      ${trades.map(t=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:.6rem 1rem;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:.75rem">
+        <span style="color:var(--tbright)">${t.symbol}</span>
+        <span style="color:${t.pnl_dollar>=0?'var(--green)':'var(--red)'}">${t.pnl_dollar>=0?'+':''}$${t.pnl_dollar.toFixed(0)}</span>
+        <span style="color:var(--tdim);font-size:.62rem">${new Date(t.time).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}</span>
+      </div>`).join('')}
+    </div>`;
+}
+
+async function saveLossSettings(){
+  const account = parseFloat(document.getElementById('lossAccount').value);
+  const maxPct  = parseFloat(document.getElementById('lossMaxPct').value);
+  try{
+    await fetch('/api/daily-loss', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'set_settings', account, max_loss_pct: maxPct})
+    });
+    await loadLossLimit();
+    toast('✅ Loss limit settings saved');
+  }catch(e){ toast('Error: '+e.message, true); }
+}
+
+async function addLossTrade(){
+  const symbol = document.getElementById('lossSymbol').value.trim().toUpperCase();
+  const pnl    = parseFloat(document.getElementById('lossPnl').value);
+  const account = parseFloat(document.getElementById('lossAccount').value);
+  const maxPct  = parseFloat(document.getElementById('lossMaxPct').value);
+  if(!symbol || isNaN(pnl)){ toast('Enter symbol and P&L amount', true); return; }
+  try{
+    await fetch('/api/daily-loss', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'add_trade', symbol, pnl_dollar: pnl, account, max_loss_pct: maxPct})
+    });
+    document.getElementById('lossSymbol').value = '';
+    document.getElementById('lossPnl').value = '';
+    await loadLossLimit();
+    toast(pnl >= 0 ? `✅ ${symbol} +$${pnl} logged` : `📝 ${symbol} -$${Math.abs(pnl)} logged`);
+  }catch(e){ toast('Error: '+e.message, true); }
+}
+
+async function resetLossDay(){
+  const account = parseFloat(document.getElementById('lossAccount').value);
+  const maxPct  = parseFloat(document.getElementById('lossMaxPct').value);
+  try{
+    await fetch('/api/daily-loss', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'reset', account, max_loss_pct: maxPct})
+    });
+    await loadLossLimit();
+    toast('Day reset — fresh start');
+  }catch(e){ toast('Error: '+e.message, true); }
+}
+
+// Show daily loss warning in header if limit is near
+async function checkDailyLoss(){
+  try{
+    const r = await fetch('/api/daily-loss');
+    const d = await r.json();
+    const badge = document.getElementById('mktBadge');
+    if(d.trading_halted && badge){
+      badge.textContent = '🛑 TRADING HALTED';
+      badge.className = 'mkt-badge bearish';
+    }
+  }catch(e){}
+}
+
 // ── BOOT ──────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -2265,6 +2615,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadAll();
   setInterval(loadAll, 60000);
   setTimeout(checkSheetsStatus, 1500);
+  setTimeout(checkDailyLoss, 2000);
+  setInterval(checkDailyLoss, 300000); // Check every 5 min
 });
 </script>
 </body>
